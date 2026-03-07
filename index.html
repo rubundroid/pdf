@@ -22,7 +22,7 @@
 
 <div class="container">
     <h2>PDF Compressor</h2>
-    <div class="info">കംപ്രസ് ചെയ്യാനുള്ള ഫയൽ തിരഞ്ഞെടുക്കുക.</div>
+    <div class="info">കംപ്രസ് ചെയ്യുന്നതിനുള്ള ഫയല്‍ തിരഞ്ഞെടുക്കുക. </div>
     
     <input type="file" id="pdfInput" accept="application/pdf">
     <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
@@ -52,9 +52,13 @@
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             
-for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const { jsPDF } = window.jspdf;
+            let newPdf;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
-                // Scale 1.2 ആക്കി കുറച്ചു
+                
+                // Scale 1.2 ആയി സെറ്റ് ചെയ്യുന്നു
                 const viewport = page.getViewport({ scale: 1.2 }); 
                 
                 const canvas = document.createElement('canvas');
@@ -64,16 +68,13 @@ for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
 
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                // ഓട്ടോമാറ്റിക് ആയി ക്വാളിറ്റി കുറയ്ക്കുന്ന ഭാഗം (Dynamic Compression)
-                let quality = 0.7; // തുടക്കത്തിൽ 0.7 ക്വാളിറ്റി നൽകുന്നു
+                // ഓട്ടോമാറ്റിക് ക്വാളിറ്റി അഡ്ജസ്റ്റ്മെന്റ് (95 KB ക്ക് താഴെയാക്കാൻ)
+                let quality = 0.7; 
                 let imgData = canvas.toDataURL('image/jpeg', quality);
-                
-                // Base64 സ്ട്രിംഗിൽ നിന്ന് ഫയൽ സൈസ് (KB) കണക്കാക്കുന്നു
                 let sizeInKB = (imgData.length * 0.75) / 1024; 
 
-                // സൈസ് 95 KB യിൽ താഴെ ആകുന്നത് വരെ ലൂപ്പ് വർക്ക് ചെയ്യും
                 while (sizeInKB > 95 && quality > 0.1) {
-                    quality -= 0.1; // ഓരോ തവണയും ക്വാളിറ്റി 0.1 വെച്ച് കുറയ്ക്കുന്നു
+                    quality -= 0.1; 
                     imgData = canvas.toDataURL('image/jpeg', quality);
                     sizeInKB = (imgData.length * 0.75) / 1024;
                 }
@@ -82,8 +83,10 @@ for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const orientation = canvas.width > canvas.height ? 'l' : 'p';
 
                 if (pageNum === 1) {
+                    // ആദ്യത്തെ പേജിന്റെ orientation അനുസരിച്ച് PDF തുടങ്ങുന്നു
                     newPdf = new jsPDF(orientation, 'mm', 'a4');
                 } else {
+                    // ബാക്കിയുള്ള പേജുകൾ orientation അനുസരിച്ച് ആഡ് ചെയ്യുന്നു
                     newPdf.addPage('a4', orientation);
                 }
                 
@@ -92,6 +95,7 @@ for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 
                 newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 
+                // ഓരോ പേജിന്റെയും പ്രോസസ്സിംഗ് സ്റ്റാറ്റസ് കാണിക്കുന്നു
                 statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
             }
 
@@ -111,7 +115,7 @@ for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         } catch (error) {
             console.error(error);
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. ഫയൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
+            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. ഫയല്‍ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
         } finally {
             btn.disabled = false;
         }
