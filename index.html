@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Compressor</title>
+    <title>PDF Compressor (High Clarity)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -15,14 +15,17 @@
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         #status { margin-top: 15px; font-weight: bold; text-align: center; color: #d9534f; }
-        .info { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; }
+        .info { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; line-height: 1.5; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>PDF Compressor</h2>
-    <div class="info">കംപ്രസ് ചെയ്യുന്നതിനുള്ള ഫയല്‍ തിരഞ്ഞെടുക്കുക. </div>
+    <div class="info">
+        <b>B&W High Clarity Mode:</b> കംപ്രസ് ചെയ്യാനുള്ള ഫയല്‍ .<br>
+        തിരഞ്ഞെടുക്കുക.
+    </div>
     
     <input type="file" id="pdfInput" accept="application/pdf">
     <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
@@ -30,7 +33,6 @@
 </div>
 
 <script>
-    // PDF.js Worker സജ്ജമാക്കുന്നു
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     async function processPDF() {
@@ -58,8 +60,8 @@
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
                 
-                // Scale 1.2 ആയി സെറ്റ് ചെയ്യുന്നു
-                const viewport = page.getViewport({ scale: 1.2 }); 
+                // ക്ലാരിറ്റി കൂട്ടാൻ Scale 1.5 ആക്കി നൽകുന്നു
+                const viewport = page.getViewport({ scale: 1.5 }); 
                 
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -68,25 +70,49 @@
 
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                // ഓട്ടോമാറ്റിക് ക്വാളിറ്റി അഡ്ജസ്റ്റ്മെന്റ് (95 KB ക്ക് താഴെയാക്കാൻ)
-                let quality = 0.7; 
+                // --- IMAGE PROCESSING (Grayscale & Thresholding) ---
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Grayscale ലേക്ക് മാറ്റുന്നു
+                    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    
+                    // Thresholding: പശ്ചാത്തലം പൂർണ്ണമായും വെളുപ്പിക്കുന്നു, അക്ഷരങ്ങൾ കറുപ്പിക്കുന്നു
+                    if (gray > 200) {
+                        gray = 255; // ഇളം നിറങ്ങളെ പൂർണ്ണമായി വെളുപ്പിക്കുന്നു (Background)
+                    } else {
+                        gray = Math.max(0, gray - 20); // അക്ഷരങ്ങളെ കൂടുതൽ ഡാർക്ക് ആക്കുന്നു
+                    }
+
+                    data[i] = gray;     // R
+                    data[i + 1] = gray; // G
+                    data[i + 2] = gray; // B
+                }
+                ctx.putImageData(imageData, 0, 0);
+                // --------------------------------------------------
+
+                // ഓട്ടോമാറ്റിക് ക്വാളിറ്റി അഡ്ജസ്റ്റ്മെന്റ് (Grayscale ആയതിനാൽ ഉയർന്ന ക്വാളിറ്റി നൽകാം)
+                let quality = 0.8; 
                 let imgData = canvas.toDataURL('image/jpeg', quality);
                 let sizeInKB = (imgData.length * 0.75) / 1024; 
 
+                // 95 KB ക്ക് താഴെയാകുന്നത് വരെ ലൂപ്പ് ചെയ്യും
                 while (sizeInKB > 95 && quality > 0.1) {
                     quality -= 0.1; 
                     imgData = canvas.toDataURL('image/jpeg', quality);
                     sizeInKB = (imgData.length * 0.75) / 1024;
                 }
                 
-                // Landscape ആണോ Portrait ആണോ എന്ന് ചെക്ക് ചെയ്യുന്നു
                 const orientation = canvas.width > canvas.height ? 'l' : 'p';
 
                 if (pageNum === 1) {
-                    // ആദ്യത്തെ പേജിന്റെ orientation അനുസരിച്ച് PDF തുടങ്ങുന്നു
                     newPdf = new jsPDF(orientation, 'mm', 'a4');
                 } else {
-                    // ബാക്കിയുള്ള പേജുകൾ orientation അനുസരിച്ച് ആഡ് ചെയ്യുന്നു
                     newPdf.addPage('a4', orientation);
                 }
                 
@@ -95,27 +121,25 @@
                 
                 newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 
-                // ഓരോ പേജിന്റെയും പ്രോസസ്സിംഗ് സ്റ്റാറ്റസ് കാണിക്കുന്നു
                 statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
             }
 
-            // മൊത്തം സൈസ് പരിശോധിക്കുന്നു
             const pdfBlob = newPdf.output('blob');
             const sizeInMB = pdfBlob.size / (1024 * 1024);
 
             if (sizeInMB > 9.9) {
                 statusDiv.style.color = "#d9534f";
-                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${sizeInMB.toFixed(2)} MB ആണ്. അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${sizeInMB.toFixed(2)} MB ആണ്. ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
             } else {
                 statusDiv.style.color = "green";
-                statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${sizeInMB.toFixed(2)} MB. ഫയൽ ഡൗൺലോഡ് ആകുന്നു...`;
+                statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${sizeInMB.toFixed(2)} MB. ഡൗൺലോഡ് ആകുന്നു...`;
                 newPdf.save('COM' + file.name);
             }
 
         } catch (error) {
             console.error(error);
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. ഫയല്‍ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
+            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. കൺസോൾ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
         } finally {
             btn.disabled = false;
         }
