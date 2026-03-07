@@ -52,12 +52,10 @@
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             
-const { jsPDF } = window.jspdf;
-            let newPdf; // ലൂപ്പിന് പുറത്ത് ഡിക്ലയർ ചെയ്യുന്നു
-
-            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.5 }); 
+                // Scale 1.2 ആക്കി കുറച്ചു
+                const viewport = page.getViewport({ scale: 1.2 }); 
                 
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -66,16 +64,26 @@ const { jsPDF } = window.jspdf;
 
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.5); 
+                // ഓട്ടോമാറ്റിക് ആയി ക്വാളിറ്റി കുറയ്ക്കുന്ന ഭാഗം (Dynamic Compression)
+                let quality = 0.7; // തുടക്കത്തിൽ 0.7 ക്വാളിറ്റി നൽകുന്നു
+                let imgData = canvas.toDataURL('image/jpeg', quality);
+                
+                // Base64 സ്ട്രിംഗിൽ നിന്ന് ഫയൽ സൈസ് (KB) കണക്കാക്കുന്നു
+                let sizeInKB = (imgData.length * 0.75) / 1024; 
+
+                // സൈസ് 95 KB യിൽ താഴെ ആകുന്നത് വരെ ലൂപ്പ് വർക്ക് ചെയ്യും
+                while (sizeInKB > 95 && quality > 0.1) {
+                    quality -= 0.1; // ഓരോ തവണയും ക്വാളിറ്റി 0.1 വെച്ച് കുറയ്ക്കുന്നു
+                    imgData = canvas.toDataURL('image/jpeg', quality);
+                    sizeInKB = (imgData.length * 0.75) / 1024;
+                }
                 
                 // Landscape ആണോ Portrait ആണോ എന്ന് ചെക്ക് ചെയ്യുന്നു
                 const orientation = canvas.width > canvas.height ? 'l' : 'p';
 
                 if (pageNum === 1) {
-                    // ആദ്യത്തെ പേജിന്റെ orientation അനുസരിച്ച് PDF തുടങ്ങുന്നു
                     newPdf = new jsPDF(orientation, 'mm', 'a4');
                 } else {
-                    // ബാക്കിയുള്ള ഓരോ പേജും അതിന്റെ orientation-ൽ ആഡ് ചെയ്യുന്നു
                     newPdf.addPage('a4', orientation);
                 }
                 
@@ -84,7 +92,7 @@ const { jsPDF } = window.jspdf;
                 
                 newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 
-                statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു...`;
+                statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
             }
 
             // മൊത്തം സൈസ് പരിശോധിക്കുന്നു
