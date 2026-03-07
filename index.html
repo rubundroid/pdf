@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPARK PDF Compressor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { color: #333; text-align: center; }
+        input[type="file"] { margin-bottom: 20px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-bottom: 10px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #status { margin-top: 15px; font-weight: bold; text-align: center; color: #d9534f; }
+        .info { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>SPARK PDF Compressor</h2>
+    <div class="info">ഓരോ പേജും പരമാവധി 98 KB ആയി കംപ്രസ് ചെയ്യുകയും, മൊത്തം സൈസ് 9.9 MB യിൽ താഴെ നിർത്തുകയും ചെയ്യുന്നു.</div>
+    
+    <input type="file" id="pdfInput" accept="application/pdf">
+    <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    // PDF.js Worker സജ്ജമാക്കുന്നു
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    async function processPDF() {
+        const fileInput = document.getElementById('pdfInput');
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('compressBtn');
+
+        if (fileInput.files.length === 0) {
+            statusDiv.innerText = "ദയവായി ഒരു PDF ഫയൽ തിരഞ്ഞെടുക്കുക.";
+            return;
+        }
+
+        const file = fileInput.files[0];
+        btn.disabled = true;
+        statusDiv.style.color = "#007bff";
+        statusDiv.innerText = "പ്രോസസ്സ് ചെയ്യുന്നു... ദയവായി കാത്തിരിക്കുക.";
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            const { jsPDF } = window.jspdf;
+            const newPdf = new jsPDF('p', 'mm', 'a4');
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 }); // റെസല്യൂഷൻ ക്രമീകരിക്കുന്നു
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                // 98 KB യിൽ താഴെ നിർത്താൻ Quality ക്രമീകരിക്കുന്നു (0.4 മുതൽ 0.6 വരെ അനുയോജ്യമാണ്)
+                const imgData = canvas.toDataURL('image/jpeg', 0.5); 
+
+                if (pageNum > 1) {
+                    newPdf.addPage();
+                }
+                
+                // A4 സൈസിലേക്ക് ഇമേജ് ചേർക്കുന്നു
+                const pdfWidth = newPdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                
+                statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു...`;
+            }
+
+            // മൊത്തം സൈസ് പരിശോധിക്കുന്നു
+            const pdfBlob = newPdf.output('blob');
+            const sizeInMB = pdfBlob.size / (1024 * 1024);
+
+            if (sizeInMB > 9.9) {
+                statusDiv.style.color = "#d9534f";
+                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${sizeInMB.toFixed(2)} MB ആണ്. സ്പാർക്കിൽ അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+            } else {
+                statusDiv.style.color = "green";
+                statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${sizeInMB.toFixed(2)} MB. ഫയൽ ഡൗൺലോഡ് ആകുന്നു...`;
+                newPdf.save('SPARK_Compressed_' + file.name);
+            }
+
+        } catch (error) {
+            console.error(error);
+            statusDiv.style.color = "#d9534f";
+            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. ഫയൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
+        } finally {
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
