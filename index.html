@@ -91,7 +91,7 @@
             } else {
                 statusDiv.style.color = "green";
                 statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${sizeInMB.toFixed(2)} MB. ഫയൽ ഡൗൺലോഡ് ആകുന്നു...`;
-                newPdf.save('SPARK_Compressed_' + file.name);
+                newPdf.save('COM' + file.name);
             }
 
         } catch (error) {
