@@ -124,9 +124,9 @@
       <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
       <div id="status"></div>
 
-      <div class="counter-box">
+      <div class="counter-box" id="counterContainer" style="display: none">
         ഈ ടൂൾ ഉപയോഗിച്ച് കംപ്രസ് ചെയ്ത ഫയലുകൾ:
-        <strong id="countDisplay">0</strong>
+        <strong id="countDisplay">...</strong>
       </div>
     </div>
 
@@ -138,8 +138,10 @@
         .then((response) => response.json())
         .then((data) => {
           document.getElementById("countDisplay").innerText = data.count || 0;
+
+          document.getElementById("counterContainer").style.display = "block";
         })
-        .catch((error) => console.log("Error:", error));
+        .catch((error) => console.log("Counter load error:", error));
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
