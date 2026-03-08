@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Compressor (High Clarity)</title>
+    <title>SPARK PDF Compressor (High Clarity)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -11,28 +11,47 @@
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h2 { color: #333; text-align: center; }
         input[type="file"] { margin-bottom: 20px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-bottom: 10px; font-weight: bold; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         #status { margin-top: 15px; font-weight: bold; text-align: center; color: #d9534f; }
         .info { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; line-height: 1.5; }
+        .counter-box { text-align: center; margin-top: 25px; font-size: 14px; color: #555; padding-top: 15px; border-top: 1px solid #eee; }
+        .counter-box strong { color: #007bff; font-size: 16px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>PDF Compressor</h2>
+    <h2>SPARK PDF Compressor</h2>
     <div class="info">
-        <b> കംപ്രസ് ചെയ്യാനുള്ള </b> ഫയല്‍ <br>
-        തിരഞ്ഞെടുക്കുക
+        <b>B&W High Clarity Mode:</b> ഓരോ പേജും കറുപ്പും വെളുപ്പും ആക്കി മാറ്റി ക്ലാരിറ്റി വർദ്ധിപ്പിക്കുന്നു.<br>
+        (പരമാവധി 95 KB / പേജ്, മൊത്തം സൈസ് < 9.9 MB)
     </div>
     
     <input type="file" id="pdfInput" accept="application/pdf">
     <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
     <div id="status"></div>
+
+    <div class="counter-box">
+        ഈ ടൂൾ ഉപയോഗിച്ച് വിജയകരമായി കംപ്രസ് ചെയ്ത ഫയലുകൾ: <strong id="countDisplay">0</strong>
+    </div>
 </div>
 
 <script>
+    // --- Counter API Setup ---
+    const counterNamespace = "rubundroid-pdf-compressor"; 
+    const counterKey = "total-compressions";
+
+    // പേജ് ലോഡ് ചെയ്യുമ്പോൾ നിലവിലെ എണ്ണം എടുക്കുന്നു
+    fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('countDisplay').innerText = data.count || 0;
+        })
+        .catch(error => console.log("Counter load error:", error));
+
+    // --- PDF Worker Setup ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     async function processPDF() {
@@ -59,8 +78,6 @@
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
-                
-                // ക്ലാരിറ്റി കൂട്ടാൻ Scale 1.5 ആക്കി നൽകുന്നു
                 const viewport = page.getViewport({ scale: 1.5 }); 
                 
                 const canvas = document.createElement('canvas');
@@ -79,29 +96,25 @@
                     const g = data[i + 1];
                     const b = data[i + 2];
                     
-                    // Grayscale ലേക്ക് മാറ്റുന്നു
                     let gray = 0.299 * r + 0.587 * g + 0.114 * b;
                     
-                    // Thresholding: പശ്ചാത്തലം പൂർണ്ണമായും വെളുപ്പിക്കുന്നു, അക്ഷരങ്ങൾ കറുപ്പിക്കുന്നു
                     if (gray > 200) {
-                        gray = 255; // ഇളം നിറങ്ങളെ പൂർണ്ണമായി വെളുപ്പിക്കുന്നു (Background)
+                        gray = 255; 
                     } else {
-                        gray = Math.max(0, gray - 20); // അക്ഷരങ്ങളെ കൂടുതൽ ഡാർക്ക് ആക്കുന്നു
+                        gray = Math.max(0, gray - 20); 
                     }
 
-                    data[i] = gray;     // R
-                    data[i + 1] = gray; // G
-                    data[i + 2] = gray; // B
+                    data[i] = gray;     
+                    data[i + 1] = gray; 
+                    data[i + 2] = gray; 
                 }
                 ctx.putImageData(imageData, 0, 0);
                 // --------------------------------------------------
 
-                // ഓട്ടോമാറ്റിക് ക്വാളിറ്റി അഡ്ജസ്റ്റ്മെന്റ് (Grayscale ആയതിനാൽ ഉയർന്ന ക്വാളിറ്റി നൽകാം)
                 let quality = 0.8; 
                 let imgData = canvas.toDataURL('image/jpeg', quality);
                 let sizeInKB = (imgData.length * 0.75) / 1024; 
 
-                // 95 KB ക്ക് താഴെയാകുന്നത് വരെ ലൂപ്പ് ചെയ്യും
                 while (sizeInKB > 95 && quality > 0.1) {
                     quality -= 0.1; 
                     imgData = canvas.toDataURL('image/jpeg', quality);
@@ -124,34 +137,43 @@
                 statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
             }
 
-// മൊത്തം സൈസ് പരിശോധിക്കുന്നു
+            // --- സൈസ് കാൽക്കുലേഷൻ (KB / MB) ---
             const pdfBlob = newPdf.output('blob');
-            const totalSizeKB = pdfBlob.size / 1024; // സൈസ് ആദ്യം KB യിൽ കണക്കാക്കുന്നു
+            const totalSizeKB = pdfBlob.size / 1024; 
             
             let displaySize = "";
             let sizeInMB = totalSizeKB / 1024;
 
-            // 1 MB (1024 KB) ക്ക് മുകളിലാണെങ്കിൽ MB യിൽ കാണിക്കുക
             if (totalSizeKB >= 1024) {
                 displaySize = sizeInMB.toFixed(2) + " MB";
             } else {
-                // 1 MB ക്ക് താഴെയാണെങ്കിൽ KB യിൽ കാണിക്കുക
                 displaySize = Math.round(totalSizeKB) + " KB";
             }
 
+            // --- ഫൈനൽ ചെക്കിംഗ് & ഡൗൺലോഡ് ---
             if (sizeInMB > 9.9) {
                 statusDiv.style.color = "#d9534f";
-                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്. ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്. സ്പാർക്കിൽ അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
             } else {
                 statusDiv.style.color = "green";
                 statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${displaySize}. ഡൗൺലോഡ് ആകുന്നു...`;
-                newPdf.save('COM' + file.name);
+                newPdf.save('SPARK_Compressed_BW_' + file.name);
+
+                // ഡൗൺലോഡ് വിജയകരമായാൽ കൗണ്ടർ വർദ്ധിപ്പിക്കുന്നു
+                fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.count) {
+                            document.getElementById('countDisplay').innerText = data.count;
+                        }
+                    })
+                    .catch(error => console.log("Counter update error:", error));
             }
 
         } catch (error) {
             console.error(error);
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. കൺസോൾ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
+            statusDiv.innerText = "ഒരു എറർ സംഭവിച്ചു. ഫയൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
         } finally {
             btn.disabled = false;
         }
