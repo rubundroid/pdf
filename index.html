@@ -137,14 +137,15 @@
       fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
         .then((response) => response.json())
         .then((data) => {
-          document.getElementById("countDisplay").innerText = data.count || 0;
-          document.getElementById("counterContainer").style.display = "block";
+          if (data.count && data.count > 0) {
+            document.getElementById("countDisplay").innerText = data.count;
+            document.getElementById("counterContainer").style.display = "block";
+          }
         })
         .catch((error) => {
-          console.log("Counter load error:", error);
-
-          document.getElementById("countDisplay").innerText = "0";
-          document.getElementById("counterContainer").style.display = "block";
+          // Ad-blocker കാരണം ബ്ലോക്ക് ആയാൽ കൗണ്ടർ ഹൈഡ് ചെയ്തു തന്നെ വെക്കും
+          console.log("Counter blocked by browser or ad-blocker.");
+          document.getElementById("counterContainer").style.display = "none";
         });
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -278,9 +279,14 @@
                 if (data.count) {
                   document.getElementById("countDisplay").innerText =
                     data.count;
+                  // എണ്ണം വിജയകരമായി അപ്ഡേറ്റ് ആയാൽ മാത്രം കൗണ്ടർ സ്ക്രീനിൽ കാണിക്കുക
+                  document.getElementById("counterContainer").style.display =
+                    "block";
                 }
               })
-              .catch((error) => console.log("Error:", error));
+              .catch((error) => {
+                console.log("Counter update blocked by browser.", error);
+              });
           }
         } catch (error) {
           console.error(error);
