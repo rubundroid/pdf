@@ -138,10 +138,14 @@
         .then((response) => response.json())
         .then((data) => {
           document.getElementById("countDisplay").innerText = data.count || 0;
-
           document.getElementById("counterContainer").style.display = "block";
         })
-        .catch((error) => console.log("Counter load error:", error));
+        .catch((error) => {
+          console.log("Counter load error:", error);
+
+          document.getElementById("countDisplay").innerText = "0";
+          document.getElementById("counterContainer").style.display = "block";
+        });
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
