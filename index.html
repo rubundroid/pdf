@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPARK PDF Compressor (High Clarity)</title>
+    <title>PDF Compressor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h2 { color: #333; text-align: center; }
-        input[type="file"] { margin-bottom: 20px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="file"], select { margin-bottom: 20px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; }
         button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-bottom: 10px; font-weight: bold; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
@@ -23,41 +23,44 @@
 <body>
 
 <div class="container">
-    <h2>SPARK PDF Compressor</h2>
+    <h2>PDF Compressor</h2>
     <div class="info">
-        <b>B&W High Clarity Mode:</b> ഓരോ പേജും കറുപ്പും വെളുപ്പും ആക്കി മാറ്റി ക്ലാരിറ്റി വർദ്ധിപ്പിക്കുന്നു.<br>
-        (പരമാവധി 95 KB / പേജ്, മൊത്തം സൈസ് < 9.9 MB)
+         കംപ്രസ് ചെയ്യുന്നതിനുളള ഫയൽ  <br>
+        തിരഞ്ഞെടുക്കുക.
     </div>
     
+    <select id="colorMode">
+        <option value="bw">Black & White (High Clarity Mode)</option>
+        <option value="color">Color (Standard Mode)</option>
+    </select>
+
     <input type="file" id="pdfInput" accept="application/pdf">
     <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
     <div id="status"></div>
 
     <div class="counter-box">
-        ഈ ടൂൾ ഉപയോഗിച്ച് വിജയകരമായി കംപ്രസ് ചെയ്ത ഫയലുകൾ: <strong id="countDisplay">0</strong>
+        ഈ ടൂൾ ഉപയോഗിച്ച് കംപ്രസ് ചെയ്ത ഫയലുകൾ: <strong id="countDisplay">0</strong>
     </div>
 </div>
 
 <script>
-    // --- Counter API Setup ---
     const counterNamespace = "rubundroid-pdf-compressor"; 
     const counterKey = "total-compressions";
 
-    // പേജ് ലോഡ് ചെയ്യുമ്പോൾ നിലവിലെ എണ്ണം എടുക്കുന്നു
     fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
         .then(response => response.json())
         .then(data => {
             document.getElementById('countDisplay').innerText = data.count || 0;
         })
-        .catch(error => console.log("Counter load error:", error));
+        .catch(error => console.log("Error:", error));
 
-    // --- PDF Worker Setup ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     async function processPDF() {
         const fileInput = document.getElementById('pdfInput');
         const statusDiv = document.getElementById('status');
         const btn = document.getElementById('compressBtn');
+        const colorMode = document.getElementById('colorMode').value;
 
         if (fileInput.files.length === 0) {
             statusDiv.innerText = "ദയവായി ഒരു PDF ഫയൽ തിരഞ്ഞെടുക്കുക.";
@@ -78,7 +81,8 @@
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.5 }); 
+                const scaleValue = colorMode === 'bw' ? 1.5 : 1.2;
+                const viewport = page.getViewport({ scale: scaleValue }); 
                 
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -87,29 +91,29 @@
 
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                // --- IMAGE PROCESSING (Grayscale & Thresholding) ---
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
+                if (colorMode === 'bw') {
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
                     
-                    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                    
-                    if (gray > 200) {
-                        gray = 255; 
-                    } else {
-                        gray = Math.max(0, gray - 20); 
-                    }
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        
+                        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        if (gray > 200) {
+                            gray = 255; 
+                        } else {
+                            gray = Math.max(0, gray - 20); 
+                        }
 
-                    data[i] = gray;     
-                    data[i + 1] = gray; 
-                    data[i + 2] = gray; 
+                        data[i] = gray;     
+                        data[i + 1] = gray; 
+                        data[i + 2] = gray; 
+                    }
+                    ctx.putImageData(imageData, 0, 0);
                 }
-                ctx.putImageData(imageData, 0, 0);
-                // --------------------------------------------------
 
                 let quality = 0.8; 
                 let imgData = canvas.toDataURL('image/jpeg', quality);
@@ -134,10 +138,9 @@
                 
                 newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 
-                statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
+                statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു...`;
             }
 
-            // --- സൈസ് കാൽക്കുലേഷൻ (KB / MB) ---
             const pdfBlob = newPdf.output('blob');
             const totalSizeKB = pdfBlob.size / 1024; 
             
@@ -150,16 +153,16 @@
                 displaySize = Math.round(totalSizeKB) + " KB";
             }
 
-            // --- ഫൈനൽ ചെക്കിംഗ് & ഡൗൺലോഡ് ---
             if (sizeInMB > 9.9) {
                 statusDiv.style.color = "#d9534f";
-                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്. സ്പാർക്കിൽ അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്. അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
             } else {
                 statusDiv.style.color = "green";
                 statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${displaySize}. ഡൗൺലോഡ് ആകുന്നു...`;
-                newPdf.save('SPARK_Compressed_BW_' + file.name);
+                
+                let filePrefix = colorMode === 'bw' ? 'BW' : 'CO';
+                newPdf.save(filePrefix + file.name);
 
-                // ഡൗൺലോഡ് വിജയകരമായാൽ കൗണ്ടർ വർദ്ധിപ്പിക്കുന്നു
                 fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`)
                     .then(response => response.json())
                     .then(data => {
@@ -167,7 +170,7 @@
                             document.getElementById('countDisplay').innerText = data.count;
                         }
                     })
-                    .catch(error => console.log("Counter update error:", error));
+                    .catch(error => console.log("Error:", error));
             }
 
         } catch (error) {
