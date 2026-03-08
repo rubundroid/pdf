@@ -124,15 +124,27 @@
                 statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു... (സൈസ്: ${Math.round(sizeInKB)} KB)`;
             }
 
+// മൊത്തം സൈസ് പരിശോധിക്കുന്നു
             const pdfBlob = newPdf.output('blob');
-            const sizeInMB = pdfBlob.size / (1024 * 1024);
+            const totalSizeKB = pdfBlob.size / 1024; // സൈസ് ആദ്യം KB യിൽ കണക്കാക്കുന്നു
+            
+            let displaySize = "";
+            let sizeInMB = totalSizeKB / 1024;
+
+            // 1 MB (1024 KB) ക്ക് മുകളിലാണെങ്കിൽ MB യിൽ കാണിക്കുക
+            if (totalSizeKB >= 1024) {
+                displaySize = sizeInMB.toFixed(2) + " MB";
+            } else {
+                // 1 MB ക്ക് താഴെയാണെങ്കിൽ KB യിൽ കാണിക്കുക
+                displaySize = Math.round(totalSizeKB) + " KB";
+            }
 
             if (sizeInMB > 9.9) {
                 statusDiv.style.color = "#d9534f";
-                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${sizeInMB.toFixed(2)} MB ആണ്. ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+                statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്. ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
             } else {
                 statusDiv.style.color = "green";
-                statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${sizeInMB.toFixed(2)} MB. ഡൗൺലോഡ് ആകുന്നു...`;
+                statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${displaySize}. ഡൗൺലോഡ് ആകുന്നു...`;
                 newPdf.save('COM' + file.name);
             }
 
