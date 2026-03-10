@@ -104,6 +104,35 @@
         color: #007bff;
         font-size: 16px;
       }
+      .limit-btn-container {
+        display: flex;
+        gap: 15px;
+        margin-top: 15px;
+        width: 100%;
+      }
+      .outline-btn {
+        flex: 1;
+        padding: 12px;
+        background-color: #ffffff;
+        color: #007bff;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .outline-btn:hover {
+        background-color: #f0f7ff;
+        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.15);
+        transform: translateY(-2px);
+      }
+      .outline-btn:disabled {
+        border-color: #cccccc;
+        color: #888888;
+        cursor: not-allowed;
+        transform: none;
+      }
     </style>
   </head>
   <body>
@@ -122,10 +151,26 @@
 
       <input type="file" id="pdfInput" accept="application/pdf" />
       <button id="compressBtn" onclick="processPDF()">Compress</button>
+      <div class="limit-btn-container">
+        <button
+          id="btn200"
+          class="outline-btn"
+          onclick="compressToTarget(198, this)"
+        >
+          ⚡ 200 KB Limit
+        </button>
+        <button
+          id="btn100"
+          class="outline-btn"
+          onclick="compressToTarget(98, this)"
+        >
+          ⚡ 100 KB Limit
+        </button>
+      </div>
       <div id="status"></div>
 
       <div class="counter-box" id="counterContainer" style="display: none">
-       Total files compressed so far:
+        Total files compressed so far:
         <strong id="countDisplay">...</strong>
       </div>
     </div>
@@ -143,7 +188,6 @@
           }
         })
         .catch((error) => {
-          
           console.log("Counter blocked by browser or ad-blocker.");
           document.getElementById("counterContainer").style.display = "none";
         });
@@ -279,7 +323,7 @@
                 if (data.count) {
                   document.getElementById("countDisplay").innerText =
                     data.count;
-                  
+
                   document.getElementById("counterContainer").style.display =
                     "block";
                 }
@@ -291,7 +335,8 @@
         } catch (error) {
           console.error(error);
           statusDiv.style.color = "#d9534f";
-statusDiv.innerText = "An error occurred. Please check the file and try again.";
+          statusDiv.innerText =
+            "An error occurred. Please check the file and try again.";
         } finally {
           btn.disabled = false;
         }
@@ -303,6 +348,95 @@ statusDiv.innerText = "An error occurred. Please check the file and try again.";
             .then((reg) => console.log("Service Worker Registered"))
             .catch((err) => console.log("Service Worker Error", err));
         });
+      }
+
+      async function compressToTarget(targetKB, btnElement) {
+        const fileInput = document.querySelector('input[type="file"]');
+        const statusDiv = document.getElementById("status");
+
+        if (!fileInput || !fileInput.files.length) {
+          statusDiv.style.color = "#d9534f";
+          statusDiv.innerText = "Please select a file to compress.";
+          return;
+        }
+
+        const file = fileInput.files[0];
+        let displayLimit = targetKB === 98 ? "100" : "200";
+
+        const allBtns = document.querySelectorAll("button");
+        allBtns.forEach((b) => (b.disabled = true));
+
+        statusDiv.style.color = "#007bff";
+        statusDiv.innerText = `Compressing to ${displayLimit} KB limit... Please wait.`;
+
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const numPages = pdf.numPages;
+
+          if (
+            (targetKB === 98 && numPages > 3) ||
+            (targetKB === 198 && numPages > 6)
+          ) {
+            statusDiv.style.color = "#d9534f";
+            statusDiv.innerText = `This file has too many pages to be compressed below ${displayLimit} KB. Please use the main Compress button.`;
+            allBtns.forEach((b) => (b.disabled = false));
+            return;
+          }
+
+          const { jsPDF } = window.jspdf;
+          const newPdf = new jsPDF();
+
+          let scaleSetting = targetKB === 98 ? 1.0 : 1.2;
+          let qualitySetting = targetKB === 98 ? 0.3 : 0.5;
+
+          for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: scaleSetting });
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: ctx, viewport: viewport })
+              .promise;
+
+            const imgData = canvas.toDataURL("image/jpeg", qualitySetting);
+
+            if (pageNum > 1) newPdf.addPage();
+
+            const pdfWidth = newPdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+          }
+
+          let finalBlob = newPdf.output("blob");
+          let sizeInKB = finalBlob.size / 1024;
+
+          let prefix = targetKB === 98 ? "TE" : "NO";
+          newPdf.save(prefix + file.name);
+
+          statusDiv.style.color = "green";
+          statusDiv.innerText = `Success! New size: ${sizeInKB.toFixed(2)} KB. Downloading...`;
+
+          fetch(
+            `https://api.counterapi.dev/v1/rubundroid-pdf-compressor/total-compressions/up`,
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.count) {
+                document.getElementById("countDisplay").innerText = data.count;
+              }
+            })
+            .catch((e) => console.log("Counter blocked"));
+        } catch (error) {
+          console.error(error);
+          statusDiv.style.color = "#d9534f";
+          statusDiv.innerText = "An error occurred. Please try again.";
+        } finally {
+          allBtns.forEach((b) => (b.disabled = false));
+        }
       }
     </script>
   </body>
