@@ -421,12 +421,15 @@
           statusDiv.innerText = `Success! New size: ${sizeInKB.toFixed(2)} KB. Downloading...`;
 
           fetch(
-            `https://api.counterapi.dev/v1/rubundroid-pdf-compressor/total-compressions/up`,
+            `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
           )
             .then((response) => response.json())
             .then((data) => {
               if (data.count) {
                 document.getElementById("countDisplay").innerText = data.count;
+                // എണ്ണം വിജയകരമായി അപ്ഡേറ്റ് ആയാൽ കൗണ്ടർ സ്ക്രീനിൽ കാണിക്കാൻ
+                document.getElementById("counterContainer").style.display =
+                  "block";
               }
             })
             .catch((e) => console.log("Counter blocked"));
