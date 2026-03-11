@@ -110,8 +110,8 @@
     <div class="container">
       <h2>PDF Compressor</h2>
       <div class="info">
-        കംപ്രസ് ചെയ്യാനുള്ള ഫയൽ <br />
-        തിരഞ്ഞെടുക്കുക
+        Please select a file <br />
+        to compress
       </div>
 
       <select id="colorMode">
@@ -121,11 +121,11 @@
       </select>
 
       <input type="file" id="pdfInput" accept="application/pdf" />
-      <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
+      <button id="compressBtn" onclick="processPDF()">Compress</button>
       <div id="status"></div>
 
       <div class="counter-box" id="counterContainer" style="display: none">
-        ഈ ടൂൾ ഉപയോഗിച്ച് കംപ്രസ് ചെയ്ത ഫയലുകൾ:
+       Total files compressed so far:
         <strong id="countDisplay">...</strong>
       </div>
     </div>
@@ -143,7 +143,7 @@
           }
         })
         .catch((error) => {
-          // Ad-blocker കാരണം ബ്ലോക്ക് ആയാൽ കൗണ്ടർ ഹൈഡ് ചെയ്തു തന്നെ വെക്കും
+          
           console.log("Counter blocked by browser or ad-blocker.");
           document.getElementById("counterContainer").style.display = "none";
         });
@@ -158,14 +158,14 @@
         const colorMode = document.getElementById("colorMode").value;
 
         if (fileInput.files.length === 0) {
-          statusDiv.innerText = "ദയവായി ഒരു PDF ഫയൽ തിരഞ്ഞെടുക്കുക.";
+          statusDiv.innerText = "Select a PDF file to proceed.";
           return;
         }
 
         const file = fileInput.files[0];
         btn.disabled = true;
         statusDiv.style.color = "#007bff";
-        statusDiv.innerText = "പ്രോസസ്സ് ചെയ്യുന്നു... ദയവായി കാത്തിരിക്കുക.";
+        statusDiv.innerText = "Processing, please wait...";
 
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -245,7 +245,7 @@
 
             newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
 
-            statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു...`;
+            statusDiv.innerText = `Compressing page ${pageNum} of ${pdf.numPages}...`;
           }
 
           const pdfBlob = newPdf.output("blob");
@@ -262,10 +262,10 @@
 
           if (sizeInMB > 9.9) {
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്.അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
+            statusDiv.innerText = `Warning: File size is ${displaySize}. It needs to be split into 2 files to upload!`;
           } else {
             statusDiv.style.color = "green";
-            statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${displaySize}. ഡൗൺലോഡ് ആകുന്നു...`;
+            statusDiv.innerText = `Success! New size: ${displaySize}. Downloading...`;
 
             let filePrefix =
               colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
@@ -279,7 +279,7 @@
                 if (data.count) {
                   document.getElementById("countDisplay").innerText =
                     data.count;
-                  // എണ്ണം വിജയകരമായി അപ്ഡേറ്റ് ആയാൽ മാത്രം കൗണ്ടർ സ്ക്രീനിൽ കാണിക്കുക
+                  
                   document.getElementById("counterContainer").style.display =
                     "block";
                 }
@@ -291,8 +291,7 @@
         } catch (error) {
           console.error(error);
           statusDiv.style.color = "#d9534f";
-          statusDiv.innerText =
-            "ഒരു എറർ സംഭവിച്ചു. ഫയൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
+statusDiv.innerText = "An error occurred. Please check the file and try again.";
         } finally {
           btn.disabled = false;
         }
