@@ -1,6 +1,6 @@
 // വേർഷൻ v1 ൽ നിന്ന് v2 ആക്കി മാറ്റി. 
 // (ഇനി ഭാവിയിൽ കോഡിൽ മാറ്റങ്ങൾ വരുത്തുമ്പോൾ ഇത് v3, v4 എന്നിങ്ങനെ മാറ്റിക്കൊടുക്കുക)
-const CACHE_NAME = "pdf-compressor-v11"; 
+const CACHE_NAME = "pdf-compressor-v12"; 
 const urlsToCache = [
   "./",
   "./index.html",
