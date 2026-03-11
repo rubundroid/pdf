@@ -354,6 +354,8 @@
         const fileInput = document.querySelector('input[type="file"]');
         const statusDiv = document.getElementById("status");
 
+        const colorMode = document.getElementById("colorMode").value;
+
         if (!fileInput || !fileInput.files.length) {
           statusDiv.style.color = "#d9534f";
           statusDiv.innerText = "Please select a file to compress.";
@@ -385,14 +387,11 @@
           }
 
           const { jsPDF } = window.jspdf;
-          const newPdf = new jsPDF();
-
-          let scaleSetting = targetKB === 98 ? 1.0 : 1.2;
-          let qualitySetting = targetKB === 98 ? 0.3 : 0.5;
+          const canvases = [];
 
           for (let pageNum = 1; pageNum <= numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: scaleSetting });
+            const viewport = page.getViewport({ scale: 1.2 });
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
 
@@ -402,17 +401,60 @@
             await page.render({ canvasContext: ctx, viewport: viewport })
               .promise;
 
-            const imgData = canvas.toDataURL("image/jpeg", qualitySetting);
+            const imgDataRaw = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height,
+            );
+            const data = imgDataRaw.data;
 
-            if (pageNum > 1) newPdf.addPage();
+            if (colorMode === "ma" || colorMode === "bw") {
+              for (let i = 0; i < data.length; i += 4) {
+                let r = data[i],
+                  g = data[i + 1],
+                  b = data[i + 2];
+                let gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-            const pdfWidth = newPdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+                if (colorMode === "ma") {
+                  gray = gray > 150 ? 255 : gray - 50;
+                  if (gray < 0) gray = 0;
+                } else {
+                  gray = gray > 128 ? 255 : 0;
+                }
+                data[i] = data[i + 1] = data[i + 2] = gray;
+              }
+              ctx.putImageData(imgDataRaw, 0, 0);
+            }
+            canvases.push(canvas);
           }
 
-          let finalBlob = newPdf.output("blob");
-          let sizeInKB = finalBlob.size / 1024;
+          let quality = 0.8;
+          let finalBlob;
+          let newPdf;
+          let sizeInKB = 999;
+
+          while (quality > 0.05) {
+            newPdf = new jsPDF();
+
+            for (let i = 0; i < canvases.length; i++) {
+              const canvas = canvases[i];
+              const imgData = canvas.toDataURL("image/jpeg", quality);
+
+              if (i > 0) newPdf.addPage();
+              const pdfWidth = newPdf.internal.pageSize.getWidth();
+              const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+              newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+            }
+
+            finalBlob = newPdf.output("blob");
+            sizeInKB = finalBlob.size / 1024;
+
+            if (sizeInKB <= targetKB) {
+              break;
+            }
+            quality -= 0.1;
+          }
 
           let prefix = targetKB === 98 ? "TE" : "NO";
           newPdf.save(prefix + file.name);
@@ -421,13 +463,12 @@
           statusDiv.innerText = `Success! New size: ${sizeInKB.toFixed(2)} KB. Downloading...`;
 
           fetch(
-            `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
+            `https://api.counterapi.dev/v1/rubundroid-pdf-compressor/total-compressions/up`,
           )
             .then((response) => response.json())
             .then((data) => {
               if (data.count) {
                 document.getElementById("countDisplay").innerText = data.count;
-
                 document.getElementById("counterContainer").style.display =
                   "block";
               }
