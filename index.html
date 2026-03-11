@@ -104,43 +104,14 @@
         color: #007bff;
         font-size: 16px;
       }
-      .limit-btn-container {
-        display: flex;
-        gap: 15px;
-        margin-top: 15px;
-        width: 100%;
-      }
-      .outline-btn {
-        flex: 1;
-        padding: 12px;
-        background-color: #ffffff;
-        color: #007bff;
-        border: 2px solid #007bff;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      .outline-btn:hover {
-        background-color: #f0f7ff;
-        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.15);
-        transform: translateY(-2px);
-      }
-      .outline-btn:disabled {
-        border-color: #cccccc;
-        color: #888888;
-        cursor: not-allowed;
-        transform: none;
-      }
     </style>
   </head>
   <body>
     <div class="container">
       <h2>PDF Compressor</h2>
       <div class="info">
-        Please select a file <br />
-        to compress
+        കംപ്രസ് ചെയ്യാനുള്ള ഫയൽ <br />
+        തിരഞ്ഞെടുക്കുക
       </div>
 
       <select id="colorMode">
@@ -150,34 +121,11 @@
       </select>
 
       <input type="file" id="pdfInput" accept="application/pdf" />
-      <button id="compressBtn" onclick="processPDF()">Compress</button>
-      <div class="limit-btn-container">
-        <button
-          id="btn2000"
-          class="outline-btn"
-          onclick="compressToTarget(1990, this)"
-        >
-          ⚡ 2 MB
-        </button>
-        <button
-          id="btn200"
-          class="outline-btn"
-          onclick="compressToTarget(198, this)"
-        >
-          ⚡ 200 KB
-        </button>
-        <button
-          id="btn100"
-          class="outline-btn"
-          onclick="compressToTarget(98, this)"
-        >
-          ⚡ 100 KB
-        </button>
-      </div>
+      <button id="compressBtn" onclick="processPDF()">കംപ്രസ് ചെയ്യുക</button>
       <div id="status"></div>
 
       <div class="counter-box" id="counterContainer" style="display: none">
-        Total files compressed so far:
+        ഈ ടൂൾ ഉപയോഗിച്ച് കംപ്രസ് ചെയ്ത ഫയലുകൾ:
         <strong id="countDisplay">...</strong>
       </div>
     </div>
@@ -195,6 +143,7 @@
           }
         })
         .catch((error) => {
+          // Ad-blocker കാരണം ബ്ലോക്ക് ആയാൽ കൗണ്ടർ ഹൈഡ് ചെയ്തു തന്നെ വെക്കും
           console.log("Counter blocked by browser or ad-blocker.");
           document.getElementById("counterContainer").style.display = "none";
         });
@@ -209,20 +158,14 @@
         const colorMode = document.getElementById("colorMode").value;
 
         if (fileInput.files.length === 0) {
-          statusDiv.innerText = "Select a PDF file to proceed.";
+          statusDiv.innerText = "ദയവായി ഒരു PDF ഫയൽ തിരഞ്ഞെടുക്കുക.";
           return;
         }
 
         const file = fileInput.files[0];
         btn.disabled = true;
-        const outlineBtns = document.querySelectorAll(".outline-btn");
-        outlineBtns.forEach((b) => {
-          b.disabled = true;
-          b.style.pointerEvents = "none";
-          b.style.opacity = "0.6";
-        });
         statusDiv.style.color = "#007bff";
-        statusDiv.innerText = "Processing, please wait...";
+        statusDiv.innerText = "പ്രോസസ്സ് ചെയ്യുന്നു... ദയവായി കാത്തിരിക്കുക.";
 
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -302,7 +245,7 @@
 
             newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
 
-            statusDiv.innerText = `Compressing page ${pageNum} of ${pdf.numPages}...`;
+            statusDiv.innerText = `പേജ് ${pageNum} / ${pdf.numPages} കംപ്രസ്സ് ചെയ്തു...`;
           }
 
           const pdfBlob = newPdf.output("blob");
@@ -319,10 +262,10 @@
 
           if (sizeInMB > 9.9) {
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = `Warning: File size is ${displaySize}. It needs to be split into 2 files to upload!`;
+            statusDiv.innerText = `മുന്നറിയിപ്പ്: ഫയൽ സൈസ് ${displaySize} ആണ്.അപ്‌ലോഡ് ചെയ്യാൻ ഇത് 2 ഫയലുകളായി സ്പ്ലിറ്റ് ചെയ്യേണ്ടതുണ്ട്!`;
           } else {
             statusDiv.style.color = "green";
-            statusDiv.innerText = `Success! New size: ${displaySize}. Downloading...`;
+            statusDiv.innerText = `വിജയകരം! പുതിയ സൈസ്: ${displaySize}. ഡൗൺലോഡ് ആകുന്നു...`;
 
             let filePrefix =
               colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
@@ -336,7 +279,7 @@
                 if (data.count) {
                   document.getElementById("countDisplay").innerText =
                     data.count;
-
+                  // എണ്ണം വിജയകരമായി അപ്ഡേറ്റ് ആയാൽ മാത്രം കൗണ്ടർ സ്ക്രീനിൽ കാണിക്കുക
                   document.getElementById("counterContainer").style.display =
                     "block";
                 }
@@ -349,15 +292,9 @@
           console.error(error);
           statusDiv.style.color = "#d9534f";
           statusDiv.innerText =
-            "An error occurred. Please check the file and try again.";
+            "ഒരു എറർ സംഭവിച്ചു. ഫയൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.";
         } finally {
           btn.disabled = false;
-          const outlineBtns = document.querySelectorAll(".outline-btn");
-          outlineBtns.forEach((b) => {
-            b.disabled = false;
-            b.style.pointerEvents = "auto";
-            b.style.opacity = "1";
-          });
         }
       }
       if ("serviceWorker" in navigator) {
@@ -367,158 +304,6 @@
             .then((reg) => console.log("Service Worker Registered"))
             .catch((err) => console.log("Service Worker Error", err));
         });
-      }
-
-      async function compressToTarget(targetKB, btnElement) {
-        const fileInput = document.querySelector('input[type="file"]');
-        const statusDiv = document.getElementById("status");
-
-        const colorMode = document.getElementById("colorMode").value;
-
-        if (!fileInput || !fileInput.files.length) {
-          statusDiv.style.color = "#d9534f";
-          statusDiv.innerText = "Please select a file to compress.";
-          return;
-        }
-
-        const file = fileInput.files[0];
-        let displayLimit =
-          targetKB === 98 ? "100 KB" : targetKB === 198 ? "200 KB" : "2 MB";
-
-        const outlineBtns = document.querySelectorAll(".outline-btn");
-        outlineBtns.forEach((b) => {
-          b.disabled = true;
-          b.style.pointerEvents = "none";
-          b.style.opacity = "0.6";
-        });
-
-        const mainBtn = document.getElementById("compressBtn");
-        if (mainBtn) mainBtn.disabled = true;
-
-        const originalText = btnElement.innerText;
-        btnElement.innerText = "⏳ Wait...";
-
-        statusDiv.style.color = "#007bff";
-        statusDiv.innerText = `Compressing to ${displayLimit} limit using ${colorMode} mode... Please wait.`;
-
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const numPages = pdf.numPages;
-
-          if (
-            (targetKB === 98 && numPages > 3) ||
-            (targetKB === 198 && numPages > 6) ||
-            (targetKB === 1990 && numPages > 40)
-          ) {
-            statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = `This file has too many pages to be compressed below ${displayLimit}. Please use the main Compress button.`;
-            throw new Error("Page limit exceeded");
-          }
-
-          const { jsPDF } = window.jspdf;
-          const canvases = [];
-
-          for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.2 });
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            await page.render({ canvasContext: ctx, viewport: viewport })
-              .promise;
-
-            if (colorMode === "ma" || colorMode === "bw") {
-              const imgDataRaw = ctx.getImageData(
-                0,
-                0,
-                canvas.width,
-                canvas.height,
-              );
-              const data = imgDataRaw.data;
-
-              for (let i = 0; i < data.length; i += 4) {
-                let r = data[i],
-                  g = data[i + 1],
-                  b = data[i + 2];
-                let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-                if (colorMode === "ma") {
-                  gray = gray > 150 ? 255 : gray - 50;
-                  if (gray < 0) gray = 0;
-                } else {
-                  gray = gray > 128 ? 255 : 0;
-                }
-                data[i] = data[i + 1] = data[i + 2] = gray;
-              }
-              ctx.putImageData(imgDataRaw, 0, 0);
-            }
-            canvases.push(canvas);
-          }
-
-          let quality = 0.8;
-          let finalBlob;
-          let newPdf;
-          let sizeInKB = 999;
-
-          while (quality > 0.05) {
-            newPdf = new jsPDF();
-
-            for (let i = 0; i < canvases.length; i++) {
-              const canvas = canvases[i];
-              const imgData = canvas.toDataURL("image/jpeg", quality);
-
-              if (i > 0) newPdf.addPage();
-              const pdfWidth = newPdf.internal.pageSize.getWidth();
-              const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-              newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-            }
-
-            finalBlob = newPdf.output("blob");
-            sizeInKB = finalBlob.size / 1024;
-
-            if (sizeInKB <= targetKB) {
-              break;
-            }
-            quality -= 0.1;
-          }
-
-          let prefix = targetKB === 98 ? "TE" : targetKB === 198 ? "NO" : "KS";
-          newPdf.save(prefix + file.name);
-
-          statusDiv.style.color = "green";
-          statusDiv.innerText = `Success! New size: ${sizeInKB.toFixed(2)} KB. Downloading...`;
-
-          fetch(
-            `https://api.counterapi.dev/v1/rubundroid-pdf-compressor/total-compressions/up`,
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.count) {
-                document.getElementById("countDisplay").innerText = data.count;
-                document.getElementById("counterContainer").style.display =
-                  "block";
-              }
-            })
-            .catch((e) => console.log("Counter blocked"));
-        } catch (error) {
-          if (error.message !== "Page limit exceeded") {
-            console.error(error);
-            statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = "An error occurred. Please try again.";
-          }
-        } finally {
-          outlineBtns.forEach((b) => {
-            b.disabled = false;
-            b.style.pointerEvents = "auto";
-            b.style.opacity = "1";
-          });
-          if (mainBtn) mainBtn.disabled = false;
-          btnElement.innerText = originalText;
-        }
       }
     </script>
   </body>
