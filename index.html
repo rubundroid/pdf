@@ -153,18 +153,25 @@
       <button id="compressBtn" onclick="processPDF()">Compress</button>
       <div class="limit-btn-container">
         <button
+          id="btn2000"
+          class="outline-btn"
+          onclick="compressToTarget(1990, this)"
+        >
+          ⚡ 2 MB
+        </button>
+        <button
           id="btn200"
           class="outline-btn"
           onclick="compressToTarget(198, this)"
         >
-          ⚡ 200 KB Limit
+          ⚡ 200 KB
         </button>
         <button
           id="btn100"
           class="outline-btn"
           onclick="compressToTarget(98, this)"
         >
-          ⚡ 100 KB Limit
+          ⚡ 100 KB
         </button>
       </div>
       <div id="status"></div>
@@ -208,6 +215,12 @@
 
         const file = fileInput.files[0];
         btn.disabled = true;
+        const outlineBtns = document.querySelectorAll(".outline-btn");
+        outlineBtns.forEach((b) => {
+          b.disabled = true;
+          b.style.pointerEvents = "none";
+          b.style.opacity = "0.6";
+        });
         statusDiv.style.color = "#007bff";
         statusDiv.innerText = "Processing, please wait...";
 
@@ -339,6 +352,12 @@
             "An error occurred. Please check the file and try again.";
         } finally {
           btn.disabled = false;
+          const outlineBtns = document.querySelectorAll(".outline-btn");
+          outlineBtns.forEach((b) => {
+            b.disabled = false;
+            b.style.pointerEvents = "auto";
+            b.style.opacity = "1";
+          });
         }
       }
       if ("serviceWorker" in navigator) {
@@ -363,13 +382,24 @@
         }
 
         const file = fileInput.files[0];
-        let displayLimit = targetKB === 98 ? "100" : "200";
+        let displayLimit =
+          targetKB === 98 ? "100 KB" : targetKB === 198 ? "200 KB" : "2 MB";
 
-        const allBtns = document.querySelectorAll("button");
-        allBtns.forEach((b) => (b.disabled = true));
+        const outlineBtns = document.querySelectorAll(".outline-btn");
+        outlineBtns.forEach((b) => {
+          b.disabled = true;
+          b.style.pointerEvents = "none";
+          b.style.opacity = "0.6";
+        });
+
+        const mainBtn = document.getElementById("compressBtn");
+        if (mainBtn) mainBtn.disabled = true;
+
+        const originalText = btnElement.innerText;
+        btnElement.innerText = "⏳ Wait...";
 
         statusDiv.style.color = "#007bff";
-        statusDiv.innerText = `Compressing to ${displayLimit} KB limit... Please wait.`;
+        statusDiv.innerText = `Compressing to ${displayLimit} limit using ${colorMode} mode... Please wait.`;
 
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -378,12 +408,12 @@
 
           if (
             (targetKB === 98 && numPages > 3) ||
-            (targetKB === 198 && numPages > 6)
+            (targetKB === 198 && numPages > 6) ||
+            (targetKB === 1990 && numPages > 40)
           ) {
             statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = `This file has too many pages to be compressed below ${displayLimit} KB. Please use the main Compress button.`;
-            allBtns.forEach((b) => (b.disabled = false));
-            return;
+            statusDiv.innerText = `This file has too many pages to be compressed below ${displayLimit}. Please use the main Compress button.`;
+            throw new Error("Page limit exceeded");
           }
 
           const { jsPDF } = window.jspdf;
@@ -401,15 +431,15 @@
             await page.render({ canvasContext: ctx, viewport: viewport })
               .promise;
 
-            const imgDataRaw = ctx.getImageData(
-              0,
-              0,
-              canvas.width,
-              canvas.height,
-            );
-            const data = imgDataRaw.data;
-
             if (colorMode === "ma" || colorMode === "bw") {
+              const imgDataRaw = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+              );
+              const data = imgDataRaw.data;
+
               for (let i = 0; i < data.length; i += 4) {
                 let r = data[i],
                   g = data[i + 1],
@@ -456,7 +486,7 @@
             quality -= 0.1;
           }
 
-          let prefix = targetKB === 98 ? "TE" : "NO";
+          let prefix = targetKB === 98 ? "TE" : targetKB === 198 ? "NO" : "KS";
           newPdf.save(prefix + file.name);
 
           statusDiv.style.color = "green";
@@ -475,11 +505,19 @@
             })
             .catch((e) => console.log("Counter blocked"));
         } catch (error) {
-          console.error(error);
-          statusDiv.style.color = "#d9534f";
-          statusDiv.innerText = "An error occurred. Please try again.";
+          if (error.message !== "Page limit exceeded") {
+            console.error(error);
+            statusDiv.style.color = "#d9534f";
+            statusDiv.innerText = "An error occurred. Please try again.";
+          }
         } finally {
-          allBtns.forEach((b) => (b.disabled = false));
+          outlineBtns.forEach((b) => {
+            b.disabled = false;
+            b.style.pointerEvents = "auto";
+            b.style.opacity = "1";
+          });
+          if (mainBtn) mainBtn.disabled = false;
+          btnElement.innerText = originalText;
         }
       }
     </script>
