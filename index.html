@@ -104,14 +104,84 @@
         color: #007bff;
         font-size: 16px;
       }
+      /* --- SPARK Info Box Modern Design --- */
+      .spark-info-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f0f7ff, #e0efff);
+        border: 1px solid #cce4ff;
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin: 15px auto;
+        max-width: 90%;
+        box-shadow: 0 4px 6px rgba(0, 123, 255, 0.06);
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+
+      .spark-info-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 123, 255, 0.12);
+      }
+
+      .spark-icon {
+        width: 28px;
+        height: 28px;
+        color: #007bff;
+        margin-right: 12px;
+        flex-shrink: 0;
+      }
+
+      .spark-info-text {
+        color: #4a5568;
+        font-size: 13px;
+        line-height: 1.5;
+        text-align: left;
+      }
+
+      .spark-info-text .highlight {
+        color: #0056b3;
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      @media (min-width: 600px) {
+        .spark-info-text {
+          font-size: 14px;
+        }
+        .spark-info-text .highlight {
+          font-size: 15px;
+        }
+        .spark-info-box {
+          max-width: 400px;
+        }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <h2>PDF Compressor</h2>
-      <div class="info">
-        Perfectly optimized for SPARK's   <br />
-        'Upload Supporting Documents'.
+      <div class="spark-info-box">
+        <svg
+          class="spark-icon"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <div class="spark-info-text">
+          Perfectly optimized for SPARK's<br />
+          <span class="highlight">'Upload Supporting Documents'</span>
+        </div>
       </div>
 
       <select id="colorMode">
@@ -125,7 +195,7 @@
       <div id="status"></div>
 
       <div class="counter-box" id="counterContainer" style="display: none">
-       Total files compressed so far:
+        Total files compressed so far:
         <strong id="countDisplay">...</strong>
       </div>
     </div>
@@ -143,7 +213,6 @@
           }
         })
         .catch((error) => {
-          
           console.log("Counter blocked by browser or ad-blocker.");
           document.getElementById("counterContainer").style.display = "none";
         });
@@ -279,7 +348,7 @@
                 if (data.count) {
                   document.getElementById("countDisplay").innerText =
                     data.count;
-                  
+
                   document.getElementById("counterContainer").style.display =
                     "block";
                 }
@@ -291,7 +360,8 @@
         } catch (error) {
           console.error(error);
           statusDiv.style.color = "#d9534f";
-statusDiv.innerText = "An error occurred. Please check the file and try again.";
+          statusDiv.innerText =
+            "An error occurred. Please check the file and try again.";
         } finally {
           btn.disabled = false;
         }
