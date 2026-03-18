@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="ml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart PDF Compressor | Fast & Secure</title>
+
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#007bff" />
+
+    <meta property="og:title" content="Smart PDF Compressor" />
+    <meta
+      property="og:description"
+      content="രേഖകളുടെ ക്ലാരിറ്റി നഷ്ടപ്പെടാതെ, എളുപ്പത്തിൽ PDF ഫയലുകൾ കംപ്രസ്സ് ചെയ്യാം. ബ്ലാക്ക് ആൻഡ് വൈറ്റ്, മാജിക് മോഡുകൾ ലഭ്യമാണ്."
+    />
+    <meta
+      property="og:image"
+      content="https://pdf.rubundroid.com/icon-512.png"
+    />
+    <meta property="og:url" content="https://pdf.rubundroid.com/" />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Smart PDF Compressor" />
+    <meta
+      name="twitter:description"
+      content="ക്ലാരിറ്റി നഷ്ടപ്പെടാതെ PDF ഫയലുകൾ കംപ്രസ്സ് ചെയ്യാം."
+    />
+    <meta
+      name="twitter:image"
+      content="https://pdf.rubundroid.com/icon-512.png"
+    />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        padding: 20px;
+        background-color: #f4f7f6;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        color: #333;
+        text-align: center;
+      }
+      input[type="file"],
+      select {
+        margin-bottom: 20px;
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 15px;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      #status {
+        margin-top: 15px;
+        font-weight: bold;
+        text-align: center;
+        color: #d9534f;
+      }
+      .info {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+        text-align: center;
+        line-height: 1.5;
+      }
+      .counter-box {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 14px;
+        color: #555;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+      }
+      .counter-box strong {
+        color: #007bff;
+        font-size: 16px;
+      }
+      /* --- SPARK Info Box Modern Design --- */
+      .spark-info-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f0f7ff, #e0efff);
+        border: 1px solid #cce4ff;
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin: 15px auto;
+        max-width: 90%;
+        box-shadow: 0 4px 6px rgba(0, 123, 255, 0.06);
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+
+      .spark-info-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 123, 255, 0.12);
+      }
+
+      .spark-icon {
+        width: 28px;
+        height: 28px;
+        color: #007bff;
+        margin-right: 12px;
+        flex-shrink: 0;
+      }
+
+      .spark-info-text {
+        color: #4a5568;
+        font-size: 13px;
+        line-height: 1.5;
+        text-align: left;
+      }
+
+      .spark-info-text .highlight {
+        color: #0056b3;
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      @media (min-width: 600px) {
+        .spark-info-text {
+          font-size: 14px;
+        }
+        .spark-info-text .highlight {
+          font-size: 15px;
+        }
+        .spark-info-box {
+          max-width: 400px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>PDF Compressor</h2>
+      <div class="spark-info-box">
+        <svg
+          class="spark-icon"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <div class="spark-info-text">
+          Perfectly optimized for <br />
+          <span class="highlight">'Upload Supporting Documents'</span>
+        </div>
+      </div>
+
+      <select id="colorMode">
+        <option value="ma" selected>Magic Mode (High Clarity Default)</option>
+        <option value="bw">Black & White</option>
+        <option value="color">Color (Standard Mode)</option>
+      </select>
+
+      <input type="file" id="pdfInput" accept="application/pdf" />
+      <button id="compressBtn" onclick="processPDF()">Compress</button>
+      <div id="status"></div>
+
+      <div class="counter-box" id="counterContainer" style="display: none">
+        Total files compressed so far:
+        <strong id="countDisplay">...</strong>
+      </div>
+    </div>
+
+    <script>
+      const counterNamespace = "rubundroid-pdf-compressor";
+      const counterKey = "total-compressions";
+
+      fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.count && data.count > 0) {
+            document.getElementById("countDisplay").innerText = data.count;
+            document.getElementById("counterContainer").style.display = "block";
+          }
+        })
+        .catch((error) => {
+          console.log("Counter blocked by browser or ad-blocker.");
+          document.getElementById("counterContainer").style.display = "none";
+        });
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+
+      async function processPDF() {
+        const fileInput = document.getElementById("pdfInput");
+        const statusDiv = document.getElementById("status");
+        const btn = document.getElementById("compressBtn");
+        const colorMode = document.getElementById("colorMode").value;
+
+        if (fileInput.files.length === 0) {
+          statusDiv.innerText = "Select a PDF file to proceed.";
+          return;
+        }
+
+        const file = fileInput.files[0];
+        btn.disabled = true;
+        statusDiv.style.color = "#007bff";
+        statusDiv.innerText = "Processing, please wait...";
+
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+          const { jsPDF } = window.jspdf;
+          let newPdf;
+
+          const processedPages = [];
+
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const scaleValue = colorMode === "color" ? 1.2 : 1.5;
+            const viewport = page.getViewport({ scale: scaleValue });
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: ctx, viewport: viewport })
+              .promise;
+
+            if (colorMode === "ma" || colorMode === "bw") {
+              const imageData = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+              );
+              const data = imageData.data;
+
+              for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                if (colorMode === "ma") {
+                  if (gray > 200) {
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
+                  } else {
+                    data[i] = Math.max(0, r - 20);
+                    data[i + 1] = Math.max(0, g - 20);
+                    data[i + 2] = Math.max(0, b - 20);
+                  }
+                } else if (colorMode === "bw") {
+                  data[i] = gray;
+                  data[i + 1] = gray;
+                  data[i + 2] = gray;
+                }
+              }
+              ctx.putImageData(imageData, 0, 0);
+            }
+
+            let quality = 0.8;
+            let imgData = canvas.toDataURL("image/jpeg", quality);
+            let sizeInKB = (imgData.length * 0.75) / 1024;
+
+            while (sizeInKB > 95 && quality > 0.1) {
+              quality -= 0.1;
+              imgData = canvas.toDataURL("image/jpeg", quality);
+              sizeInKB = (imgData.length * 0.75) / 1024;
+            }
+
+            const orientation = canvas.width > canvas.height ? "l" : "p";
+
+            if (pageNum === 1) {
+              newPdf = new jsPDF(orientation, "mm", "a4");
+            } else {
+              newPdf.addPage("a4", orientation);
+            }
+
+            const pdfWidth = newPdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+            processedPages.push({ imgData, orientation, pdfWidth, pdfHeight });
+            statusDiv.innerText = `Compressing page ${pageNum} of ${pdf.numPages}...`;
+          }
+
+          const pdfBlob = newPdf.output("blob");
+          const totalSizeKB = pdfBlob.size / 1024;
+
+          let displaySize = "";
+          let sizeInMB = totalSizeKB / 1024;
+
+          if (totalSizeKB >= 1024) {
+            displaySize = sizeInMB.toFixed(2) + " MB";
+          } else {
+            displaySize = Math.round(totalSizeKB) + " KB";
+          }
+
+          let filePrefix =
+            colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
+
+          if (sizeInMB > 9.9) {
+            let userWantsSplit = confirm(
+              `ഫൈൽ സൈസ് 9.9 MB-ക്ക് മുകളിലാണ് (${displaySize}). ഇത്  ഒറ്റ ഫയലായി അപ്‌ലോഡ് ചെയ്യാൻ കഴിയില്ല.\n\nഇത് ആവശ്യമായ ഭാഗങ്ങളായി (Part 1, Part 2...) സ്പ്ലിറ്റ് ചെയ്യട്ടെ?`,
+            );
+
+            if (userWantsSplit) {
+              statusDiv.style.color = "#007bff";
+              statusDiv.innerText =
+                "Splitting file dynamically... Please wait.";
+
+              let partNumber = 1;
+              let currentPdf = null;
+              let currentBytes = 0;
+              const MAX_BYTES = 9.5 * 1024 * 1024;
+
+              for (let i = 0; i < processedPages.length; i++) {
+                let p = processedPages[i];
+                let pageBytes = p.imgData.length * 0.75;
+
+                if (!currentPdf || currentBytes + pageBytes > MAX_BYTES) {
+                  if (currentPdf) {
+                    currentPdf.save(
+                      `Part_${partNumber}_${filePrefix}${file.name}`,
+                    );
+                    partNumber++;
+                  }
+
+                  currentPdf = new jsPDF(p.orientation, "mm", "a4");
+                  currentBytes = 0;
+                } else {
+                  currentPdf.addPage("a4", p.orientation);
+                }
+
+                currentPdf.addImage(
+                  p.imgData,
+                  "JPEG",
+                  0,
+                  0,
+                  p.pdfWidth,
+                  p.pdfHeight,
+                );
+                currentBytes += pageBytes;
+              }
+
+              if (currentPdf) {
+                currentPdf.save(`Part_${partNumber}_${filePrefix}${file.name}`);
+              }
+
+              statusDiv.style.color = "green";
+              statusDiv.innerText = `Success! File split into ${partNumber} parts and downloaded.`;
+            } else {
+              statusDiv.style.color = "#d9534f";
+              statusDiv.innerText = `Warning: File size is ${displaySize}. Splitting cancelled.`;
+              btn.disabled = false;
+              return;
+            }
+          } else {
+            statusDiv.style.color = "green";
+            statusDiv.innerText = `Success! New size: ${displaySize}. Downloading...`;
+            newPdf.save(filePrefix + file.name);
+          }
+
+          fetch(
+            `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.count) {
+                document.getElementById("countDisplay").innerText = data.count;
+                document.getElementById("counterContainer").style.display =
+                  "block";
+              }
+            })
+            .catch((error) => {
+              console.log("Counter update blocked by browser.", error);
+            });
+        } catch (error) {
+          console.error(error);
+          statusDiv.style.color = "#d9534f";
+          statusDiv.innerText =
+            "An error occurred. Please check the file and try again.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((reg) => console.log("Service Worker Registered"))
+            .catch((err) => console.log("Service Worker Error", err));
+        });
+      }
+    </script>
+  </body>
+</html>
