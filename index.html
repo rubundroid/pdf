@@ -104,7 +104,7 @@
         color: #007bff;
         font-size: 16px;
       }
-      /* --- SPARK Info Box Modern Design --- */
+
       .spark-info-box {
         display: flex;
         align-items: center;
@@ -158,6 +158,58 @@
           max-width: 400px;
         }
       }
+      /* Custom Modal CSS */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-box {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 350px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      }
+      .modal-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 25px;
+        gap: 10px;
+      }
+      .modal-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: 0.3s;
+      }
+      .cancel-btn {
+        background: #f1f3f5;
+        color: #495057;
+      }
+      .cancel-btn:hover {
+        background: #e2e6ea;
+      }
+      .split-btn {
+        background: #007bff;
+        color: white;
+      }
+      .split-btn:hover {
+        background: #0056b3;
+      }
     </style>
   </head>
   <body>
@@ -179,15 +231,15 @@
           ></path>
         </svg>
         <div class="spark-info-text">
-                  Perfectly optimized for <br />
+          Perfectly optimized for <br />
           <span class="highlight">'Upload Supporting Documents'</span>
         </div>
       </div>
 
       <select id="colorMode">
-        <option value="ma" selected>Magic Mode (High Clarity Default)</option>
+        <option value="color" selected>Color (Standard Mode - Default)</option>
+        <option value="ma">Magic Mode (High Clarity)</option>
         <option value="bw">Black & White</option>
-        <option value="color">Color (Standard Mode)</option>
       </select>
 
       <input type="file" id="pdfInput" accept="application/pdf" />
@@ -242,6 +294,8 @@
 
           const { jsPDF } = window.jspdf;
           let newPdf;
+
+          const processedPages = [];
 
           for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
@@ -313,7 +367,7 @@
             const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
             newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-
+            processedPages.push({ imgData, orientation, pdfWidth, pdfHeight });
             statusDiv.innerText = `Compressing page ${pageNum} of ${pdf.numPages}...`;
           }
 
@@ -329,34 +383,85 @@
             displaySize = Math.round(totalSizeKB) + " KB";
           }
 
+          let filePrefix =
+            colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
+
           if (sizeInMB > 9.9) {
-            statusDiv.style.color = "#d9534f";
-            statusDiv.innerText = `Warning: File size is ${displaySize}. It needs to be split into 2 files to upload!`;
+            let splitMessage = `The file size is ${displaySize}, which exceeds the 10 MB limit.\n\nWould you like to automatically split it into smaller parts (Part 1, Part 2...)?`;
+
+            let userWantsSplit = await showCustomConfirm(splitMessage);
+
+            if (userWantsSplit) {
+              statusDiv.style.color = "#007bff";
+              statusDiv.innerText =
+                "Splitting file dynamically... Please wait.";
+
+              let partNumber = 1;
+              let currentPdf = null;
+              let currentBytes = 0;
+              const MAX_BYTES = 9.5 * 1024 * 1024;
+
+              for (let i = 0; i < processedPages.length; i++) {
+                let p = processedPages[i];
+                let pageBytes = p.imgData.length * 0.75;
+
+                if (!currentPdf || currentBytes + pageBytes > MAX_BYTES) {
+                  if (currentPdf) {
+                    currentPdf.save(
+                      `Part_${partNumber}_${filePrefix}${file.name}`,
+                    );
+                    partNumber++;
+                  }
+
+                  currentPdf = new jsPDF(p.orientation, "mm", "a4");
+                  currentBytes = 0;
+                } else {
+                  currentPdf.addPage("a4", p.orientation);
+                }
+
+                currentPdf.addImage(
+                  p.imgData,
+                  "JPEG",
+                  0,
+                  0,
+                  p.pdfWidth,
+                  p.pdfHeight,
+                );
+                currentBytes += pageBytes;
+              }
+
+              if (currentPdf) {
+                currentPdf.save(`Part_${partNumber}_${filePrefix}${file.name}`);
+              }
+
+              statusDiv.style.color = "green";
+              statusDiv.innerText = `Success! File split into ${partNumber} parts and downloaded.`;
+            } else {
+              statusDiv.style.color = "#d9534f";
+              statusDiv.innerText = `Warning: File size is ${displaySize}. Splitting cancelled.`;
+              btn.disabled = false;
+              return;
+            }
           } else {
             statusDiv.style.color = "green";
             statusDiv.innerText = `Success! New size: ${displaySize}. Downloading...`;
-
-            let filePrefix =
-              colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
             newPdf.save(filePrefix + file.name);
-
-            fetch(
-              `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
-            )
-              .then((response) => response.json())
-              .then((data) => {
-                if (data.count) {
-                  document.getElementById("countDisplay").innerText =
-                    data.count;
-
-                  document.getElementById("counterContainer").style.display =
-                    "block";
-                }
-              })
-              .catch((error) => {
-                console.log("Counter update blocked by browser.", error);
-              });
           }
+
+          fetch(
+            `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.count) {
+                document.getElementById("countDisplay").innerText = data.count;
+                document.getElementById("counterContainer").style.display =
+                  "block";
+              }
+            })
+            .catch((error) => {
+              console.log("Counter update blocked by browser.", error);
+            });
         } catch (error) {
           console.error(error);
           statusDiv.style.color = "#d9534f";
@@ -374,6 +479,36 @@
             .catch((err) => console.log("Service Worker Error", err));
         });
       }
+
+      function showCustomConfirm(message) {
+        return new Promise((resolve) => {
+          const modal = document.getElementById("customConfirm");
+          document.getElementById("modalMessage").innerText = message;
+          modal.style.display = "flex";
+
+          document.getElementById("btnYesSplit").onclick = function () {
+            modal.style.display = "none";
+            resolve(true);
+          };
+
+          document.getElementById("btnNotNow").onclick = function () {
+            modal.style.display = "none";
+            resolve(false);
+          };
+        });
+      }
     </script>
+    <div id="customConfirm" class="modal-overlay" style="display: none">
+      <div class="modal-box">
+        <h3 style="color: #d9534f; margin-top: 0">⚠️ File Too Large</h3>
+        <p id="modalMessage"></p>
+        <div class="modal-buttons">
+          <button id="btnNotNow" class="modal-btn cancel-btn">Not Now</button>
+          <button id="btnYesSplit" class="modal-btn split-btn">
+            Yes, Split
+          </button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
