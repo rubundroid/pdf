@@ -299,7 +299,13 @@
 
           for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
-            const scaleValue = colorMode === "color" ? 1.2 : 1.5;
+            const originalViewport = page.getViewport({ scale: 1 });
+
+            // A3 പേജുകൾക്ക് (വലിയ പേജുകൾക്ക്) ക്ലാരിറ്റി കൂട്ടാൻ സ്കെയിൽ വർദ്ധിപ്പിക്കുന്നു
+            let scaleValue = colorMode === "color" ? 1.2 : 1.5;
+            if (originalViewport.width > 650 || originalViewport.height > 650) {
+              scaleValue = colorMode === "color" ? 1.5 : 2.0;
+            }
             const viewport = page.getViewport({ scale: scaleValue });
 
             const canvas = document.createElement("canvas");
@@ -357,17 +363,31 @@
 
             const orientation = canvas.width > canvas.height ? "l" : "p";
 
+            // ഒറിജിനൽ പേജിന്റെ യഥാർത്ഥ വലിപ്പം (mm-ൽ) കണ്ടുപിടിക്കുന്നു (Dynamic Size)
+            const ptToMm = 25.4 / 72;
+            const pageW = originalViewport.width * ptToMm;
+            const pageH = originalViewport.height * ptToMm;
+            const customFormat = [pageW, pageH];
+
             if (pageNum === 1) {
-              newPdf = new jsPDF(orientation, "mm", "a4");
+              newPdf = new jsPDF(orientation, "mm", customFormat);
             } else {
-              newPdf.addPage("a4", orientation);
+              newPdf.addPage(customFormat, orientation);
             }
 
             const pdfWidth = newPdf.internal.pageSize.getWidth();
             const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
             newPdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-            processedPages.push({ imgData, orientation, pdfWidth, pdfHeight });
+
+            // സ്പ്ലിറ്റ് ചെയ്യുമ്പോൾ ഒറിജിനൽ വലിപ്പം നിലനിർത്താൻ customFormat കൂടി സേവ് ചെയ്യുന്നു
+            processedPages.push({
+              imgData,
+              orientation,
+              pdfWidth,
+              pdfHeight,
+              format: customFormat,
+            });
             statusDiv.innerText = `Compressing page ${pageNum} of ${pdf.numPages}...`;
           }
 
@@ -413,10 +433,11 @@
                     partNumber++;
                   }
 
-                  currentPdf = new jsPDF(p.orientation, "mm", "a4");
+                  // "a4" ന് പകരം പേജിന്റെ ഒറിജിനൽ വലിപ്പം നൽകുന്നു
+                  currentPdf = new jsPDF(p.orientation, "mm", p.format);
                   currentBytes = 0;
                 } else {
-                  currentPdf.addPage("a4", p.orientation);
+                  currentPdf.addPage(p.format, p.orientation);
                 }
 
                 currentPdf.addImage(
