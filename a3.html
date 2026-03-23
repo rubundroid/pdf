@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="ml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A4 to A3 PDF - Multi Page</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background-color: #eef2f5;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .main-container {
+        width: 100%;
+        max-width: 800px;
+      }
+      .header {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+
+      /* കാർഡ് സ്റ്റൈൽ (ഓരോ A3 പേജിനും) */
+      .a3-page-block {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+        position: relative;
+        border-left: 5px solid #3498db;
+      }
+      .page-counter {
+        position: absolute;
+        top: -12px;
+        left: 20px;
+        background: #3498db;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .input-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      .file-box {
+        width: 48%;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #555;
+        font-size: 14px;
+      }
+      input[type="file"] {
+        width: 100%;
+        font-size: 13px;
+      }
+
+      /* പ്രിവ്യൂ ഏരിയ */
+      .preview-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #eee;
+        margin-bottom: 15px;
+      }
+      .preview-box {
+        width: 49%;
+        text-align: center;
+        border: 1px solid #ddd;
+        background: white;
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .preview-box img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      .preview-box span {
+        color: #888;
+        font-size: 12px;
+      }
+
+      /* ആക്ഷൻ ബട്ടണുകൾ */
+      .action-area {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .btn {
+        padding: 8px 15px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+
+      .btn-swap {
+        background-color: #f39c12;
+        color: white;
+      }
+      .btn-swap:hover {
+        background-color: #e67e22;
+      }
+
+      .btn-remove {
+        background-color: #e74c3c;
+        color: white;
+      }
+      .btn-remove:hover {
+        background-color: #c0392b;
+      }
+
+      /* മെയിൻ കൺട്രോൾ ബട്ടണുകൾ */
+      .controls {
+        text-align: center;
+        margin-top: 30px;
+        margin-bottom: 50px;
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+      }
+      .btn-add {
+        background-color: #34495e;
+        color: white;
+        padding: 12px 20px;
+        font-size: 15px;
+      }
+      .btn-add:hover {
+        background-color: #2c3e50;
+      }
+
+      .btn-generate {
+        background-color: #27ae60;
+        color: white;
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: bold;
+      }
+      .btn-generate:hover {
+        background-color: #219150;
+      }
+      .btn:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+      }
+
+      @media (max-width: 600px) {
+        .input-row,
+        .preview-row {
+          flex-direction: column;
+        }
+        .file-box,
+        .preview-box {
+          width: 100%;
+        }
+        .preview-box {
+          height: 100px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="header">
+        <h2>A4 to A3 PDF Converter (Multi-Page)</h2>
+        <p style="font-size: 14px; color: #7f8c8d">
+          പരമാവധി 20 A4 പേജുകൾ (10 A3 പേജുകൾ) വരെ ചേർക്കാം.
+        </p>
+      </div>
+
+      <div id="pagesContainer"></div>
+
+      <div class="controls">
+        <button class="btn btn-add" id="addPageBtn" onclick="addNewA3Page()">
+          + അടുത്ത A3 പേജ് ചേർക്കുക
+        </button>
+        <button class="btn btn-generate" onclick="generateMultiPagePDF()">
+          A3 PDF ഡൗൺലോഡ് ചെയ്യുക
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let a3PageCount = 0;
+      const MAX_A3_PAGES = 10; // 10 A3 = 20 A4
+
+      // പേജ് ലോഡ് ആകുമ്പോൾ ആദ്യത്തെ ബ്ലോക്ക് കാണിക്കുക
+      window.onload = function () {
+        addNewA3Page();
+      };
+
+      // പുതിയ A3 ബ്ലോക്ക് ചേർക്കുന്ന ഫംഗ്ഷൻ
+      function addNewA3Page() {
+        if (a3PageCount >= MAX_A3_PAGES) {
+          alert("പരമാവധി 10 A3 പേജുകളെ (20 A4) ഒന്നിച്ച് ചേർക്കാൻ സാധിക്കൂ.");
+          return;
+        }
+
+        a3PageCount++;
+        const container = document.getElementById("pagesContainer");
+        const pageId = `page_${a3PageCount}`;
+
+        const pageHtml = `
+            <div class="a3-page-block" id="${pageId}">
+                <div class="page-counter">A3 പേജ് ${a3PageCount}</div>
+                
+                <div class="input-row">
+                    <div class="file-box">
+                        <label>A4 പേജ് 1 (ഇടത്):</label>
+                        <input type="file" class="img-input left-input" accept="image/png, image/jpeg" onchange="handleFileSelect(this, '${pageId}', 'left')">
+                    </div>
+                    <div class="file-box">
+                        <label>A4 പേജ് 2 (വലത്):</label>
+                        <input type="file" class="img-input right-input" accept="image/png, image/jpeg" onchange="handleFileSelect(this, '${pageId}', 'right')">
+                    </div>
+                </div>
+
+                <div class="preview-row">
+                    <div class="preview-box" id="${pageId}_preview_left">
+                        <span>ഇടതുവശത്തെ പ്രിവ്യൂ</span>
+                    </div>
+                    <div class="preview-box" id="${pageId}_preview_right">
+                        <span>വലതുവശത്തെ പ്രിവ്യൂ</span>
+                    </div>
+                </div>
+
+                <div class="action-area">
+                    <button class="btn btn-swap" onclick="swapImages('${pageId}')">ഇടതും വലതും മാറ്റുക (Swap)</button>
+                    ${a3PageCount > 1 ? `<button class="btn btn-remove" onclick="removeA3Page('${pageId}')">ഈ പേജ് നീക്കുക</button>` : ""}
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML("beforeend", pageHtml);
+        updateAddButtonState();
+      }
+
+      // പേജ് നീക്കം ചെയ്യാനുള്ള ഫംഗ്ഷൻ
+      function removeA3Page(pageId) {
+        if (confirm("ഈ A3 പേജ് നീക്കം ചെയ്യണമെന്നുറപ്പാണോ?")) {
+          const element = document.getElementById(pageId);
+          element.remove();
+          recalculatePageNumbers();
+          updateAddButtonState();
+        }
+      }
+
+      // പേജ് നമ്പറുകൾ ക്രമീകരിക്കാൻ
+      function recalculatePageNumbers() {
+        const blocks = document.querySelectorAll(".a3-page-block");
+        a3PageCount = 0;
+        blocks.forEach((block, index) => {
+          a3PageCount++;
+          block.querySelector(".page-counter").innerText =
+            `A3 പേജ് ${a3PageCount}`;
+
+          // നീക്കം ചെയ്യാനുള്ള ബട്ടൺ ആദ്യത്തെ പേജിൽ കാണിക്കരുത്
+          const actionArea = block.querySelector(".action-area");
+          const removeBtn = actionArea.querySelector(".btn-remove");
+          if (a3PageCount === 1) {
+            if (removeBtn) removeBtn.remove();
+          } else {
+            if (!removeBtn) {
+              actionArea.insertAdjacentHTML(
+                "beforeend",
+                `<button class="btn btn-remove" onclick="removeA3Page('${block.id}')">ഈ പേജ് നീക്കുക</button>`,
+              );
+            }
+          }
+        });
+      }
+
+      // Add Button ഡിസേബിൾ ചെയ്യാൻ
+      function updateAddButtonState() {
+        const btn = document.getElementById("addPageBtn");
+        if (a3PageCount >= MAX_A3_PAGES) {
+          btn.disabled = true;
+          btn.innerText = "പരമാവധി പേജുകളായി";
+        } else {
+          btn.disabled = false;
+          btn.innerText = "+ അടുത്ത A3 പേജ് ചേർക്കുക";
+        }
+      }
+
+      // ഫയൽ സെലക്ട് ചെയ്യുമ്പോൾ പ്രിവ്യൂ കാണിക്കാൻ
+      function handleFileSelect(input, pageId, position) {
+        const previewBox = document.getElementById(
+          `${pageId}_preview_${position}`,
+        );
+        previewBox.innerHTML = ""; // മുൻപത്തെ കണ്ടന്റ് നീക്കുക
+
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            img.setAttribute("data-loaded", "true"); // PDF ഉണ്ടാക്കുമ്പോൾ തിരിച്ചറിയാൻ
+            previewBox.appendChild(img);
+          };
+          reader.readAsDataURL(input.files[0]);
+        } else {
+          previewBox.innerHTML = `<span>${position === "left" ? "ഇടത്" : "വലത്"} പ്രിവ്യൂ</span>`;
+        }
+      }
+
+      // **SWAP ഫീച്ചർ**
+      function swapImages(pageId) {
+        const block = document.getElementById(pageId);
+
+        // ഇൻപുട്ട് ഫയലുകൾ മാറ്റുക
+        const leftInput = block.querySelector(".left-input");
+        const rightInput = block.querySelector(".right-input");
+
+        // DataTransfer object ഉപയോഗിച്ച് ഫയലുകൾ വച്ചുമാറുന്നു (ഇത് സങ്കീർണ്ണമാണ്, അതിലും എളുപ്പം പ്രിവ്യൂ ഇമേജ് മാറ്റുന്നതാണ് PDF ജനറേഷന്)
+
+        // പ്രിവ്യൂ ഇമേജുകൾ മാറ്റുക (ഇതാണ് ഏറ്റവും എളുപ്പം)
+        const leftPreview = document.getElementById(`${pageId}_preview_left`);
+        const rightPreview = document.getElementById(`${pageId}_preview_right`);
+
+        const leftImg = leftPreview.querySelector("img");
+        const rightImg = rightPreview.querySelector("img");
+
+        if (!leftImg && !rightImg) {
+          alert("മാറ്റാൻ ഇമേജുകളൊന്നുമില്ല!");
+          return;
+        }
+
+        // HTML കണ്ടന്റുകൾ പരസ്പരം മാറ്റുന്നു
+        const tempContent = leftPreview.innerHTML;
+        leftPreview.innerHTML = rightPreview.innerHTML;
+        rightPreview.innerHTML = tempContent;
+
+        // ഇൻപുട്ട് ഫീൽഡുകൾ ക്ലിയർ ചെയ്യുന്നു (തെറ്റിദ്ധാരണ ഒഴിവാക്കാൻ.
+        // കാരണം പ്രിവ്യൂ മാറിയാലും ഫയൽ ഇൻപുട്ടിലെ പേര് മാറില്ല.
+        // പ്രിവ്യൂവിലുള്ളതാണ് PDF-ൽ വരിക എന്ന് യൂസറോട് പറയുക.)
+        leftInput.value = "";
+        rightInput.value = "";
+        alert(
+          "പ്രിവ്യൂവിലുള്ള രീതിയിൽ ഇമേജുകൾ പരസ്പരം മാറ്റിയിരിക്കുന്നു. ഇൻപുട്ട് ബോക്സിലെ ഫയൽ നാമം ശ്രദ്ധിക്കേണ്ടതില്ല.",
+        );
+      }
+
+      // **PDF ജനറേറ്റ് ചെയ്യുന്ന ഫംഗ്ഷൻ (Multi-Page)**
+      async function generateMultiPagePDF() {
+        const { jsPDF } = window.jspdf;
+        // A3 Landscape
+        const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a3",
+        });
+
+        const blocks = document.querySelectorAll(".a3-page-block");
+        let addedPages = 0;
+
+        // ക്ലാരിറ്റി കൂട്ടാൻ ഇമേജ് കംപ്രഷൻ ഒഴിവാക്കുന്നു (jsPDF default)
+
+        for (let i = 0; i < blocks.length; i++) {
+          const block = blocks[i];
+          const pageId = block.id;
+
+          const leftImg = document
+            .getElementById(`${pageId}_preview_left`)
+            .querySelector("img");
+          const rightImg = document
+            .getElementById(`${pageId}_preview_right`)
+            .querySelector("img");
+
+          if (!leftImg || !rightImg) {
+            alert(
+              `A3 പേജ് ${i + 1}-ൽ രണ്ട് A4 ഇമേജുകളും അപ്‌ലോഡ് ചെയ്തിട്ടില്ല. ദയവായി പരിശോധിക്കുക.`,
+            );
+            return;
+          }
+
+          // ഒന്നാമത്തെ പേജല്ലെങ്കിൽ പുതിയ പേജ് ആഡ് ചെയ്യണം
+          if (addedPages > 0) {
+            doc.addPage("a3", "landscape");
+          }
+
+          try {
+            // പ്രിവ്യൂവിലുള്ള ഇമേജ് ഡാറ്റ എടുക്കുന്നു (Swap ചെയ്തിട്ടുണ്ടെങ്കിൽ അത് ഉൾപ്പെടെ വരും)
+            const imgDataLeft = leftImg.src;
+            const imgDataRight = rightImg.src;
+
+            // A4 വലിപ്പം: 210x297mm. A3-ൽ അടുത്തടുത്ത് വെക്കുന്നു
+            // പരമാവധി ക്വാളിറ്റിക്കായി source format ('JPEG'/'PNG') കൃത്യമായി നൽകുന്നതാണ് നല്ലത്,
+            // എങ്കിലും base64 ആയതിനാൽ jsPDF അത് കൈകാര്യം ചെയ്തോളും.
+            doc.addImage(
+              imgDataLeft,
+              "JPEG",
+              0,
+              0,
+              210,
+              297,
+              undefined,
+              "FAST",
+            );
+            doc.addImage(
+              imgDataRight,
+              "JPEG",
+              210,
+              0,
+              210,
+              297,
+              undefined,
+              "FAST",
+            );
+
+            addedPages++;
+          } catch (error) {
+            console.error("Error adding image:", error);
+            alert(`പേജ് ${i + 1} തയ്യാറാക്കുന്നതിൽ പ്രശ്നമുണ്ടായി.`);
+          }
+        }
+
+        if (addedPages > 0) {
+          doc.save("KSWAN_A3_Document.pdf");
+        }
+      }
+    </script>
+  </body>
+</html>
