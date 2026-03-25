@@ -225,6 +225,64 @@
         color: #888;
         font-style: italic;
       }
+      /* പുതിയ ഇമേജ് അപ്‌ലോഡ് ബോക്സ് ഡിസൈൻ */
+      .image-upload-box {
+        background: #e8f5e9;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px dashed #2e7d32;
+        margin-top: 20px;
+      }
+      .image-upload-box h4 {
+        color: #2e7d32;
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 14px;
+        border-bottom: 1px solid #c8e6c9;
+        padding-bottom: 8px;
+      }
+      .file-group {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .file-group label {
+        font-weight: 600;
+        font-size: 13px;
+        color: #333;
+      }
+      .file-group .hint {
+        font-size: 11px;
+        color: #666;
+        font-weight: normal;
+      }
+      .file-input-styled {
+        padding: 8px;
+        background: #fff;
+        border: 1px solid #a5d6a7;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .btn-clear {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ffcdd2;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+        width: 100%;
+        margin-top: 5px;
+        transition: 0.3s;
+      }
+      .btn-clear:hover {
+        background: #ffcdd2;
+      }
     </style>
   </head>
   <body>
@@ -234,8 +292,11 @@
         <input
           type="text"
           id="officeInput"
-          value="Govt: Ayurveda Dispensary Angadippuram"
-          oninput="updatePreview()"
+          placeholder="Institution Name"
+          oninput="
+            updatePreview();
+            saveProfile();
+          "
         />
       </div>
       <div class="input-group">
@@ -243,8 +304,11 @@
         <input
           type="text"
           id="officerInput"
-          value="Dr. BARDEESHA K P"
-          oninput="updatePreview()"
+          placeholder="DDO Name"
+          oninput="
+            updatePreview();
+            saveProfile();
+          "
         />
       </div>
       <div class="input-group">
@@ -252,8 +316,11 @@
         <input
           type="text"
           id="desigInput"
-          value="Medical Officer HG"
-          oninput="updatePreview()"
+          placeholder="DDO Designation"
+          oninput="
+            updatePreview();
+            saveProfile();
+          "
         />
       </div>
       <div class="input-group">
@@ -261,8 +328,11 @@
         <input
           type="text"
           id="penInput"
-          value="771713"
-          oninput="updatePreview()"
+          placeholder="DDO PEN"
+          oninput="
+            updatePreview();
+            saveProfile();
+          "
         />
       </div>
     </div>
@@ -285,49 +355,45 @@
             + Add to List
           </button>
         </div>
-        <div
-          class="add-new-box"
-          style="border-color: #2e7d32; background: #e8f5e9; margin-top: 15px"
-        >
-          <label style="color: #2e7d32"
-            >Add Images for Manual Signing (Optional)</label
-          >
+        <div class="image-upload-box">
+          <h4>Add Images for Manual Signing (Optional)</h4>
 
-          <label style="font-weight: normal; margin-top: 5px"
-            >Ink Signature (Transparent PNG best)</label
-          >
-          <input
-            type="file"
-            id="signInput"
-            accept="image/*"
-            onchange="handleImageUpload(this, 'sign')"
-          />
+          <div class="file-group">
+            <label>Ink Signature <span class="hint">(Max 15KB)</span></label>
+            <input
+              type="file"
+              class="file-input-styled"
+              id="signInput"
+              accept="image/*"
+              onchange="handleImageUpload(this, 'sign')"
+            />
+          </div>
 
-          <label style="font-weight: normal; margin-top: 10px"
-            >Office Round Seal (Transparent PNG best)</label
-          >
-          <input
-            type="file"
-            id="sealInput"
-            accept="image/*"
-            onchange="handleImageUpload(this, 'seal')"
-          />
+          <div class="file-group">
+            <label>Designation Seal <span class="hint">(Max 15KB)</span></label>
+            <input
+              type="file"
+              class="file-input-styled"
+              id="desigSealInput"
+              accept="image/*"
+              onchange="handleImageUpload(this, 'desigSeal')"
+            />
+          </div>
 
-          <label style="font-weight: normal; margin-top: 10px"
-            >Designation Seal (Transparent PNG best)</label
-          >
-          <input
-            type="file"
-            id="desigSealInput"
-            accept="image/*"
-            onchange="handleImageUpload(this, 'desigSeal')"
-          />
+          <div class="file-group">
+            <label
+              >Office Round Seal <span class="hint">(Max 15KB)</span></label
+            >
+            <input
+              type="file"
+              class="file-input-styled"
+              id="sealInput"
+              accept="image/*"
+              onchange="handleImageUpload(this, 'seal')"
+            />
+          </div>
 
-          <button
-            class="btn btn-outline"
-            style="margin-top: 10px; padding: 5px; font-size: 12px"
-            onclick="clearImages()"
-          >
+          <button class="btn-clear" onclick="clearImages()">
             Clear All Images
           </button>
         </div>
@@ -380,10 +446,31 @@
         desigSeal: null,
       };
 
-      // ഫയൽ അപ്‌ലോഡ് ഹാൻഡിൽ ചെയ്യാനും Base64 ആക്കാനും
+      // ഫയൽ അപ്‌ലോഡ് ഹാൻഡിൽ ചെയ്യാനും Base64 ആക്കാനും (20KB ലിമിറ്റോടെ)
       function handleImageUpload(input, type) {
         const file = input.files[0];
+
         if (file) {
+          // 1. സൈസ് ചെക്ക് ചെയ്യുന്നു (15 KB = 15 * 1024 Bytes)
+          const maxSizeInBytes = 15 * 1024;
+
+          if (file.size > maxSizeInBytes) {
+            // 15 KB ക്ക് മുകളിലാണെങ്കിൽ അലർട്ട് കാണിക്കുന്നു
+            let currentSize = Math.round(file.size / 1024);
+            alert(
+              "ക്ഷമിക്കണം! " +
+                type.toUpperCase() +
+                " ഇമേജിന്റെ സൈസ് 15 KB യിൽ താഴെ ആയിരിക്കണം.\nനിങ്ങൾ തിരഞ്ഞെടുത്ത ഫയലിന്റെ സൈസ്: " +
+                currentSize +
+                " KB ആണ്.",
+            );
+
+            // തെറ്റായ ഫയൽ സെലക്ട് ചെയ്തത് ബോക്സിൽ നിന്നും ഒഴിവാക്കാൻ
+            input.value = "";
+            return; // ഇവിടെ വെച്ച് ഈ പ്രോസസ്സ് നിർത്തുന്നു
+          }
+
+          // 2. സൈസ് 15 KB യിൽ താഴെയാണെങ്കിൽ മാത്രം താഴെയുള്ള കോഡ് വർക്ക് ആകും
           const reader = new FileReader();
           reader.onload = function (e) {
             // Base64 ഡാറ്റ വേരിയബിളിലേക്ക് സേവ് ചെയ്യുന്നു
@@ -392,13 +479,12 @@
               type.toUpperCase() +
                 " image uploaded successfully. Download PDF to see it.",
             );
-            // പ്രിവ്യൂവിൽ കാണിക്കാൻ ആഗ്രഹമുണ്ടെങ്കിൽ ഇവിടെ `<img>` ടാഗ് അപ്ഡേറ്റ് ചെയ്യാം
           };
           reader.readAsDataURL(file);
         }
       }
 
-      // അപ്‌ലോഡ് ചെയ്ത ഇമേജുകൾ ഡിലീറ്റ് ചെയ്യാൻ
+      // അപ്‌ലോഡ് ചെയ്ത ഇമേജുകൾ ക്ലിയർ ചെയ്യാൻ (ഇതിൽ മാറ്റമില്ല)
       function clearImages() {
         imgData = { sign: null, seal: null, desigSeal: null };
         document.getElementById("signInput").value = "";
@@ -489,17 +575,50 @@
         renderCertificates();
       }
 
+      // 1. ഇൻപുട്ടിൽ ടൈപ്പ് ചെയ്യുന്നത് പ്രിവ്യൂവിൽ കാണിക്കാൻ
       function updatePreview() {
+        // ബോക്സ് കാലിയാണെങ്കിൽ പ്രിവ്യൂവിൽ ഒരു ഡിഫോൾട്ട് പേര് കാണിക്കാൻ (|| ഉപയോഗിച്ച്)
         document.getElementById("outOffice").innerText =
-          document.getElementById("officeInput").value;
-        document.getElementById("outOfficeSign").innerText =
-          document.getElementById("officeInput").value;
+          document.getElementById("officeInput").value || "Office Name";
         document.getElementById("outOfficer").innerText =
-          document.getElementById("officerInput").value;
+          document.getElementById("officerInput").value || "Officer Name";
         document.getElementById("outDesig").innerText =
-          document.getElementById("desigInput").value;
+          document.getElementById("desigInput").value || "Designation";
         document.getElementById("outPen").innerText =
-          document.getElementById("penInput").value;
+          document.getElementById("penInput").value || "PEN Number";
+
+        // താഴെയുള്ള ഓഫീസിന്റെ പേരും മാറ്റുന്നു (ചില ഡിസൈനുകളിൽ ഇത് ഉപയോഗിക്കുന്നുണ്ട്)
+        const outOfficeSign = document.getElementById("outOfficeSign");
+        if (outOfficeSign)
+          outOfficeSign.innerText =
+            document.getElementById("officeInput").value || "Office Name";
+      }
+
+      // 2. ടൈപ്പ് ചെയ്യുന്ന വിവരങ്ങൾ ലോക്കൽ സ്റ്റോറേജിലേക്ക് സേവ് ചെയ്യാൻ
+      function saveProfile() {
+        const profile = {
+          office: document.getElementById("officeInput").value,
+          officer: document.getElementById("officerInput").value,
+          desig: document.getElementById("desigInput").value,
+          pen: document.getElementById("penInput").value,
+        };
+        localStorage.setItem("myProfile", JSON.stringify(profile));
+      }
+
+      // 3. പേജ് ലോഡ് ആകുമ്പോൾ സേവ് ചെയ്ത വിവരങ്ങൾ തിരികെ എടുക്കാൻ
+      function loadProfile() {
+        const savedProfile = JSON.parse(localStorage.getItem("myProfile"));
+        if (savedProfile) {
+          document.getElementById("officeInput").value =
+            savedProfile.office || "";
+          document.getElementById("officerInput").value =
+            savedProfile.officer || "";
+          document.getElementById("desigInput").value =
+            savedProfile.desig || "";
+          document.getElementById("penInput").value = savedProfile.pen || "";
+          // സേവ് ചെയ്ത ഡാറ്റ വെച്ച് പ്രിവ്യൂ അപ്ഡേറ്റ് ചെയ്യുന്നു
+          updatePreview();
+        }
       }
 
       // ടിക്ക് ചെയ്തവ പ്രിവ്യൂവിൽ കൊണ്ടുവരാൻ
@@ -527,10 +646,12 @@
 
       function downloadPDF() {
         const { jsPDF } = window.jspdf;
+        // compress: true നൽകിയിട്ടുണ്ട് (സൈസ് കുറയാൻ)
         const doc = new jsPDF({
           orientation: "portrait",
           unit: "mm",
           format: "a4",
+          compress: true,
         });
 
         const officeName = document.getElementById("officeInput").value;
@@ -539,7 +660,6 @@
         const pen = document.getElementById("penInput").value;
         const dateStr = document.getElementById("currentDate").innerText;
 
-        const marginX = 20;
         let y = 30;
         const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -559,17 +679,17 @@
         // 2. ടൈറ്റിൽ (CERTIFICATES)
         doc.setFontSize(12);
         doc.text("CERTIFICATES", pageWidth / 2, y, { align: "center" });
-        const textWidth = doc.getTextWidth("CERTIFICATES");
+        const textWidthTitle = doc.getTextWidth("CERTIFICATES");
         doc.line(
-          (pageWidth - textWidth) / 2,
+          (pageWidth - textWidthTitle) / 2,
           y + 1,
-          (pageWidth + textWidth) / 2,
+          (pageWidth + textWidthTitle) / 2,
           y + 1,
         );
 
         y += 15;
 
-        // 3. സർട്ടിഫിക്കറ്റ് കണ്ടൻ്റ്
+        // 3. സർട്ടിഫിക്കറ്റ് കണ്ടൻ്റ് (Justified & Hanging Indent)
         doc.setFont("times", "normal");
         const listItems = document.querySelectorAll("#outText li");
         if (listItems.length === 0) {
@@ -578,77 +698,108 @@
         }
 
         listItems.forEach((li, index) => {
-          const text = `${index + 1}. ${li.innerText}`;
-          const lines = doc.splitTextToSize(text, pageWidth - marginX * 2);
-          if (y + lines.length * 6 > 240) {
+          const numberStr = `${index + 1}.`;
+          const textStr = li.innerText;
+
+          // ടെക്സ്റ്റിന് മാത്രമുള്ള വീതി (മാർജിനും നമ്പറിനുള്ള ഗ്യാപ്പും കുറച്ചു)
+          const textWidth = 162;
+          const lines = doc.splitTextToSize(textStr, textWidth);
+          const paraHeight = lines.length * 6; // പാരഗ്രാഫിൻ്റെ ഉയരം
+
+          // ബ്ലാങ്ക് സ്പേസ് ഒഴിവാക്കാൻ താഴെയുള്ള ലിമിറ്റ് 240 ൽ നിന്നും 275 ആക്കി മാറ്റി
+          if (y + paraHeight > 275) {
             doc.addPage();
             y = 20;
           }
-          doc.text(lines, marginX, y);
-          y += lines.length * 6 + 4;
+
+          // ക്രമ നമ്പർ മാർജിനിൽ പ്രിൻ്റ് ചെയ്യുന്നു (X: 20)
+          doc.text(numberStr, 20, y);
+
+          // ടെക്സ്റ്റ് Justify ചെയ്ത് പ്രിൻ്റ് ചെയ്യുന്നു (X: 28)
+          doc.text(textStr, 28, y, { align: "justify", maxWidth: textWidth });
+
+          y += paraHeight + 4; // അടുത്ത വരിയിലേക്കുള്ള ഗ്യാപ്പ്
         });
 
         // ---------------------------------------------------------
-        // 4. സീലുകളും ഒപ്പും ക്രമീകരിക്കുന്ന ഭാഗം (Footer Area)
+        // 4. സീലുകളും ഒപ്പും ക്രമീകരിക്കുന്ന ഭാഗം
         // ---------------------------------------------------------
 
-        y += 15; // സർട്ടിഫിക്കറ്റ് വരികൾ കഴിഞ്ഞുള്ള ഗ്യാപ്പ്
+        y += 10;
 
-        // താഴെ സീൽ വെക്കാൻ 40mm എങ്കിലും സ്ഥലം വേണം. ഇല്ലെങ്കിൽ പുതിയ പേജ് എടുക്കും.
-        if (y > 240) {
+        // താഴെ ഒപ്പിടാൻ 40mm സ്ഥലം ഇല്ലെങ്കിൽ പുതിയ പേജ് എടുക്കും
+        if (y + 40 > 280) {
           doc.addPage();
           y = 30;
         }
 
-        const footerY = y; // ഈ ലൈൻ ബേസ് ചെയ്താണ് ബാക്കി എല്ലാം വെക്കുന്നത്
+        const footerY = y;
 
-        // --- LEFT SIDE: Office Round Seal (o) & Date ---
+        // --- LEFT SIDE: Office Round Seal & Date ---
         if (imgData.seal) {
-          // റൗണ്ട് സീൽ ഇടത് വശത്ത് (X: 25, Y: footerY)
-          doc.addImage(imgData.seal, "PNG", 25, footerY, 30, 30);
+          doc.addImage(
+            imgData.seal,
+            "PNG",
+            20,
+            footerY,
+            30,
+            30,
+            undefined,
+            "FAST",
+          );
         }
 
         doc.setFont("times", "bold");
         doc.setFontSize(11);
-        // തിയ്യതി റൗണ്ട് സീലിന് താഴെയായി വരാൻ (Y: footerY + 35)
-        doc.text(`Dated: ${dateStr}`, marginX, footerY + 35);
+        doc.text(`Dated: ${dateStr}`, 20, footerY + 35);
 
-        // --- RIGHT SIDE: Sign (s), Desig Seal (d) & Text ---
-        const rightX = 130; // വലതുവശത്തെ അലൈൻമെൻ്റ് തുടങ്ങുന്ന സ്ഥലം
+        // --- RIGHT SIDE: Signature Block (Center Aligned within the right margin) ---
+        const rightCenter = 165; // വലതുവശത്തെ ബ്ലോക്കിൻ്റെ മധ്യഭാഗം (X axis)
 
-        // 1. Designation Seal (d) - ടെക്സ്റ്റിന് മുകളിലായി വരാൻ
         if (imgData.desigSeal) {
-          // നീളമുള്ള റബ്ബർ സ്റ്റാമ്പ് ആയതുകൊണ്ട് വീതി 55mm നൽകി
+          // 55mm വീതിയുള്ള സീൽ നടുക്ക് വരാൻ -27.5 കുറയ്ക്കുന്നു
           doc.addImage(
             imgData.desigSeal,
             "PNG",
-            rightX - 5,
+            rightCenter - 27.5,
             footerY + 5,
             55,
             18,
+            undefined,
+            "FAST",
           );
         }
 
-        // 2. Ink Sign (s) - സീലിന് മുകളിൽ ഓവർലാപ്പ് ചെയ്ത് വരാൻ
         if (imgData.sign) {
-          // Y കോർഡിനേറ്റ് കുറച്ച് നൽകി മുകളിലേക്ക് കയറ്റി വെക്കുന്നു
-          doc.addImage(imgData.sign, "PNG", rightX + 5, footerY - 12, 35, 15);
+          // 35mm വീതിയുള്ള ഒപ്പ് നടുക്ക് വരാൻ -17.5 കുറയ്ക്കുന്നു
+          doc.addImage(
+            imgData.sign,
+            "PNG",
+            rightCenter - 17.5,
+            footerY - 12,
+            35,
+            15,
+            undefined,
+            "FAST",
+          );
         }
 
-        // 3. Typed Text (Name, PEN, etc.) - സീലുകൾക്ക് താഴെയായി വരാൻ
-        // സീലുകൾ ഇല്ലാത്തപ്പോഴും നല്ല ഗ്യാപ്പ് കിട്ടാൻ textY താഴേക്ക് മാറ്റി വെക്കുന്നു
         let textY = footerY + 30;
 
-        doc.text(officerName, rightX + 5, textY);
+        // ടെക്സ്റ്റുകൾ എല്ലാം നടുക്കായി (align: "center") പ്രിൻ്റ് ചെയ്യുന്നു
+        doc.text(officerName, rightCenter, textY, { align: "center" });
         textY += 5;
-        doc.text(`PEN ${pen}`, rightX + 5, textY);
+        doc.text(`PEN ${pen}`, rightCenter, textY, { align: "center" });
         textY += 5;
-        doc.text(desig, rightX + 5, textY);
+        doc.text(desig, rightCenter, textY, { align: "center" });
         textY += 5;
-        const splitSignOffice = doc.splitTextToSize(officeName, 60);
-        doc.text(splitSignOffice, rightX + 5, textY);
 
-        // ---------------------------------------------------------
+        // വലിയ ഓഫീസ് പേര് വന്നാൽ അതിനെ രണ്ടോ മൂന്നോ വരികളാക്കി നടുക്ക് അലൈൻ ചെയ്യുന്നു
+        const splitSignOffice = doc.splitTextToSize(officeName, 60);
+        splitSignOffice.forEach((line) => {
+          doc.text(line, rightCenter, textY, { align: "center" });
+          textY += 5;
+        });
 
         doc.save("Certificate.pdf");
       }
@@ -661,7 +812,8 @@
 
       // പേജ് ലോഡ് ആകുമ്പോൾ സർട്ടിഫിക്കറ്റുകൾ കാണിക്കാൻ
       window.onload = function () {
-        renderCertificates();
+        loadProfile(); // പ്രൊഫൈൽ ഡാറ്റ ലോഡ് ചെയ്യുന്നു
+        renderCertificates(); // സർട്ടിഫിക്കറ്റുകൾ ലോഡ് ചെയ്യുന്നു
       };
     </script>
   </body>
