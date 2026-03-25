@@ -380,31 +380,10 @@
         desigSeal: null,
       };
 
-      // ഫയൽ അപ്‌ലോഡ് ഹാൻഡിൽ ചെയ്യാനും Base64 ആക്കാനും (20KB ലിമിറ്റോടെ)
+      // ഫയൽ അപ്‌ലോഡ് ഹാൻഡിൽ ചെയ്യാനും Base64 ആക്കാനും
       function handleImageUpload(input, type) {
         const file = input.files[0];
-
         if (file) {
-          // 1. സൈസ് ചെക്ക് ചെയ്യുന്നു (20 KB = 20 * 1024 Bytes)
-          const maxSizeInBytes = 20 * 1024;
-
-          if (file.size > maxSizeInBytes) {
-            // 20 KB ക്ക് മുകളിലാണെങ്കിൽ അലർട്ട് കാണിക്കുന്നു
-            let currentSize = Math.round(file.size / 1024);
-            alert(
-              "ക്ഷമിക്കണം! " +
-                type.toUpperCase() +
-                " ഇമേജിന്റെ സൈസ് 20 KB യിൽ താഴെ ആയിരിക്കണം.\nനിങ്ങൾ തിരഞ്ഞെടുത്ത ഫയലിന്റെ സൈസ്: " +
-                currentSize +
-                " KB ആണ്.",
-            );
-
-            // തെറ്റായ ഫയൽ സെലക്ട് ചെയ്തത് ബോക്സിൽ നിന്നും ഒഴിവാക്കാൻ
-            input.value = "";
-            return; // ഇവിടെ വെച്ച് ഈ പ്രോസസ്സ് നിർത്തുന്നു
-          }
-
-          // 2. സൈസ് 20 KB യിൽ താഴെയാണെങ്കിൽ മാത്രം താഴെയുള്ള കോഡ് വർക്ക് ആകും
           const reader = new FileReader();
           reader.onload = function (e) {
             // Base64 ഡാറ്റ വേരിയബിളിലേക്ക് സേവ് ചെയ്യുന്നു
@@ -413,12 +392,13 @@
               type.toUpperCase() +
                 " image uploaded successfully. Download PDF to see it.",
             );
+            // പ്രിവ്യൂവിൽ കാണിക്കാൻ ആഗ്രഹമുണ്ടെങ്കിൽ ഇവിടെ `<img>` ടാഗ് അപ്ഡേറ്റ് ചെയ്യാം
           };
           reader.readAsDataURL(file);
         }
       }
 
-      // അപ്‌ലോഡ് ചെയ്ത ഇമേജുകൾ ക്ലിയർ ചെയ്യാൻ (ഇതിൽ മാറ്റമില്ല)
+      // അപ്‌ലോഡ് ചെയ്ത ഇമേജുകൾ ഡിലീറ്റ് ചെയ്യാൻ
       function clearImages() {
         imgData = { sign: null, seal: null, desigSeal: null };
         document.getElementById("signInput").value = "";
