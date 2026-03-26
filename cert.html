@@ -410,7 +410,7 @@
       <div class="right-panel">
         <div class="a4-page" id="certificate-content">
           <div class="cert-header" id="outOffice">
-            Govt: Ayurveda Dispensary Angadippuram
+            Office Name
           </div>
           <div class="cert-title">CERTIFICATES</div>
 
@@ -426,18 +426,20 @@
             </div>
             <div class="signature-area">
               <div class="sign-space"></div>
-              <p class="designation" id="outOfficer">Dr. BARDEESHA K P</p>
-              <p class="pen-number">PEN <span id="outPen">771713</span></p>
-              <p class="designation" id="outDesig">Medical Officer HG</p>
+              <p class="designation" id="outOfficer">DDO Name</p>
+              <p class="pen-number">PEN <span id="outPen">DDO PEN</span></p>
+              <p class="designation" id="outDesig">DDO designation</p>
               <p class="designation" id="outOfficeSign">
-                Govt: Ayurveda Dispensary Angadippuram
+                Office Name
               </p>
             </div>
           </div>
         </div>
       </div>
     </div>
-
+<div id="counterContainer" style="display: none; text-align: center; font-size: 14px; color: #4b5563; margin-top: 15px; padding: 10px; background-color: #e0e7ff; border-radius: 8px;">
+            Count: <span id="countDisplay" style="font-weight: 900; color: #4f46e5; font-size: 16px;">0</span>
+        </div>
     <script>
       // അപ്‌ലോഡ് ചെയ്ത ഇമേജ് ഡാറ്റ സ്റ്റോർ ചെയ്യാൻ
       let imgData = {
@@ -802,18 +804,50 @@
         });
 
         doc.save("Certificate.pdf");
+        incrementCounter();
       }
       function copyText() {
         const text = document.getElementById("certificate-content").innerText;
         navigator.clipboard.writeText(text).then(() => {
           alert("Certificate text copied to clipboard!");
         });
+        incrementCounter();
       }
+const counterNamespace = "cert-rubundroid"; 
+    const counterKey = "total-calculations";
 
-      // പേജ് ലോഡ് ആകുമ്പോൾ സർട്ടിഫിക്കറ്റുകൾ കാണിക്കാൻ
+    // 1. പേജ് തുറക്കുമ്പോൾ നിലവിലെ കൗണ്ട് കാണിക്കാൻ
+    function getInitialCount() {
+      fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.count && data.count > 0) {
+            document.getElementById("countDisplay").innerText = data.count;
+            document.getElementById("counterContainer").style.display = "block";
+          }
+        })
+        .catch((error) => {
+          console.log("Counter blocked by browser or ad-blocker.");
+        });
+    }
+
+    // 2. ബട്ടൺ അമർത്തുമ്പോൾ കൗണ്ട് 1 കൂട്ടാൻ
+    function incrementCounter() {
+      fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.count) {
+            document.getElementById("countDisplay").innerText = data.count;
+            document.getElementById("counterContainer").style.display = "block";
+          }
+        })
+        .catch((error) => console.log("Counter increment failed."));
+    }
+
       window.onload = function () {
         loadProfile(); // പ്രൊഫൈൽ ഡാറ്റ ലോഡ് ചെയ്യുന്നു
         renderCertificates(); // സർട്ടിഫിക്കറ്റുകൾ ലോഡ് ചെയ്യുന്നു
+        getInitialCount;
       };
     </script>
   </body>
