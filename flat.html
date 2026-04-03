@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>D - Flattener</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: #f0f4f8;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        max-width: 450px;
+        text-align: center;
+      }
+      h2 {
+        color: #2c3e50;
+      }
+      p {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-bottom: 25px;
+      }
+      input[type="file"] {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 20px;
+        border: 2px dashed #bdc3c7;
+        border-radius: 6px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #0078d7;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+      }
+      button:hover {
+        background-color: #005a9e;
+      }
+      #status {
+        margin-top: 20px;
+        font-weight: bold;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>D - Flattener</h2>
+      <p>PDF Flattener</p>
+
+      <input type="file" id="pdfInput" accept="application/pdf" />
+      <button id="processBtn">Flatten PDF</button>
+      <div
+        id="counterContainer"
+        style="
+          display: none;
+          text-align: center;
+          font-size: 14px;
+          color: #4b5563;
+          margin-top: 15px;
+          padding: 10px;
+          background-color: #e0e7ff;
+          border-radius: 8px;
+        "
+      >
+        Count:
+        <span
+          id="countDisplay"
+          style="font-weight: 900; color: #4f46e5; font-size: 16px"
+          >0</span
+        >
+      </div>
+      <div id="status"></div>
+    </div>
+
+    <script>
+      const { PDFDocument, PDFName } = PDFLib;
+
+      document
+        .getElementById("processBtn")
+        .addEventListener("click", async () => {
+          const fileInput = document.getElementById("pdfInput");
+          const statusDiv = document.getElementById("status");
+
+          if (fileInput.files.length === 0) {
+            statusDiv.innerHTML =
+              '<span style="color:red">please select a PDF file!</span>';
+            return;
+          }
+
+          const file = fileInput.files[0];
+          statusDiv.innerHTML =
+            '<span style="color:blue">Processing, Please wait ...</span>';
+
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+
+            const pdfDoc = await PDFDocument.load(arrayBuffer, {
+              ignoreEncryption: true,
+            });
+
+            const form = pdfDoc.getForm();
+            form.flatten();
+
+            pdfDoc.catalog.delete(PDFName.of("AcroForm"));
+            pdfDoc.catalog.delete(PDFName.of("Perms"));
+
+            const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Flattened_" + file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            statusDiv.innerHTML =
+              '<span style="color:green">File is upload ready now</span>';
+            incrementCounter();
+          } catch (error) {
+            console.error(error);
+            statusDiv.innerHTML =
+              '<span style="color:red">error: ' + error.message + "</span>";
+          }
+        });
+      const counterNamespace = "flatpdf-rubundroid";
+      const counterKey = "total-calculations";
+
+      function getInitialCount() {
+        fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.count && data.count > 0) {
+              document.getElementById("countDisplay").innerText = data.count;
+              document.getElementById("counterContainer").style.display =
+                "block";
+            }
+          })
+          .catch((error) => {
+            console.log("Counter blocked by browser or ad-blocker.");
+          });
+      }
+
+      function incrementCounter() {
+        fetch(
+          `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.count) {
+              document.getElementById("countDisplay").innerText = data.count;
+              document.getElementById("counterContainer").style.display =
+                "block";
+            }
+          })
+          .catch((error) => console.log("Counter increment failed."));
+      }
+
+      window.onload = function () {
+        getInitialCount;
+      };
+    </script>
+  </body>
+</html>
