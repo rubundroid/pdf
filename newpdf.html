@@ -254,6 +254,38 @@
         line-height: 1.5;
       }
 
+      /* Document type pills (Standard panel) */
+      .doc-pills {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .doc-pills button {
+        margin: 0;
+        padding: 10px 6px;
+        font-size: 13px;
+        background: #fff;
+        color: var(--primary-dark);
+        border: 2px solid #cce4ff;
+      }
+      .doc-pills button:hover {
+        background: #f3f9ff;
+      }
+      .doc-pills button.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid #ccd5e0;
+        border-radius: 10px;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
       /* Form controls */
       select {
         width: 100%;
@@ -472,12 +504,17 @@
             </svg>
             <div class="spark-info-text">
               Perfectly optimized for <br />
-              <span class="highlight">'Upload Supporting Documents'</span>
-              <div class="chips">
-                <span class="chip">≤ 100 KB per page</span>
-                <span class="chip">≤ 10 MB per file</span>
-              </div>
+              <span class="highlight">'Upload Supporting Documents'</span><br />
+              <span class="highlight">'Upload Scanned Service Book'</span>
+              <div class="chips" id="classicChips"></div>
             </div>
+          </div>
+
+          <div class="doc-pills">
+            <button type="button" id="docSupporting" class="active">
+              Supporting Documents
+            </button>
+            <button type="button" id="docSB">Service Book</button>
           </div>
         </div>
 
@@ -530,6 +567,10 @@
           <option value="ma">Magic Mode (High Clarity)</option>
           <option value="bw">Black & White</option>
         </select>
+        <p class="note" id="bwHint" style="display: none; margin-top: -8px">
+          💡 Tip: for text-only government orders, Black &amp; White gives the
+          smallest file.
+        </p>
 
         <label class="drop" id="dropZone">
           <input type="file" id="pdfInput" accept="application/pdf" />
@@ -537,6 +578,25 @@
             ><strong>Tap to choose a PDF</strong><br />or drop it here</span
           >
         </label>
+
+        <div id="excludeBox" style="display: none">
+          <p class="section-label">
+            Exclude pages
+            <span style="text-transform: none; font-weight: 400"
+              >(optional)</span
+            >
+          </p>
+          <input
+            type="text"
+            id="excludeInput"
+            placeholder="e.g. 2, 5-7"
+            autocomplete="off"
+          />
+          <p class="note">
+            This mode gives a single file (no split). Use this only if the
+            result is still too large - the listed pages are left out.
+          </p>
+        </div>
 
         <button id="compressBtn" onclick="processPDF()">Compress</button>
         <div class="bar" id="bar"><div id="barFill"></div></div>
@@ -551,22 +611,33 @@
     </div>
 
     <script>
-      /* ---------- Counter (unchanged) ---------- */
-      const counterNamespace = "rubundroid-pdf-compressor";
-      const counterKey = "total-compressions";
+      /* ---------- Counter (Cloudflare worker) ---------- */
+      // One call = +1 and returns the new total, so it is called only after
+      // a successful compression (not on page load).
+      const COUNTER_URL =
+        "https://sumteck.tksumesh85.workers.dev?site=pdf-rubundroid";
 
-      fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}`)
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.count && data.count > 0) {
-            document.getElementById("countDisplay").innerText = data.count;
+      async function bumpCounter() {
+        try {
+          const response = await fetch(COUNTER_URL);
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          const ct = response.headers.get("content-type") || "";
+          const data = ct.includes("application/json")
+            ? await response.json()
+            : await response.text();
+          const v =
+            data && typeof data === "object"
+              ? (data.count ?? data.views)
+              : data;
+          if (v !== undefined && v !== "" && !isNaN(v)) {
+            document.getElementById("countDisplay").innerText =
+              Number(v).toLocaleString();
             document.getElementById("counterContainer").style.display = "block";
           }
-        })
-        .catch((error) => {
-          console.log("Counter blocked by browser or ad-blocker.");
-          document.getElementById("counterContainer").style.display = "none";
-        });
+        } catch (error) {
+          console.log("Counter blocked or failed.", error);
+        }
+      }
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
@@ -577,10 +648,16 @@
       const CLASSIC_SPLIT_TRIGGER_MB = 9.9; // ask to split above this
       const CLASSIC_PART_BYTES = 9.5 * 1024 * 1024;
 
+      // Service Book: single file, 10 MB target. Never split; if it still
+      // does not fit, the file is delivered anyway with a warning.
+      const SB_LIMIT_BYTES = 9.9 * 1024 * 1024; // same trigger as Standard
+      const SB_TARGET_BYTES = CLASSIC_PART_BYTES;
+      const SB_MIN_CAP = 25 * 1024; // lowest per-page budget
+
       // New modes: per-file limits (decimal, so safe for both 1000/1024 counting)
       const SAFETY = 0.92; // keep output ~8% below the limit
       const PROFILES = {
-        s200: { tag: "S200", limit: 200 * 1000, floor: 4 },
+        s200: { tag: "S200", limit: 200 * 1000, floor: 5, single: true, minCap: 6 * 1024 },
         bims: { tag: "BIMS", limit: 1000 * 1000, floor: 3 },
         ks2: { tag: "KS2", limit: 2 * 1000 * 1000, floor: 3 },
         ks5: { tag: "KS5", limit: 5 * 1000 * 1000, floor: 3 },
@@ -609,11 +686,46 @@
         $("tabNew").classList.toggle("active", v === "new");
         $("classicPanel").style.display = v === "classic" ? "block" : "none";
         $("newPanel").style.display = v === "new" ? "block" : "none";
+        refreshOptions();
         $("results").innerHTML = "";
         setStatus("", "");
       }
       $("tabClassic").onclick = () => setView("classic");
       $("tabNew").onclick = () => setView("new");
+
+      let docType = "supporting"; // "supporting" | "sb"
+      $("docSupporting").onclick = () => {
+        docType = "supporting";
+        refreshOptions();
+      };
+      $("docSB").onclick = () => {
+        docType = "sb";
+        refreshOptions();
+      };
+      document
+        .querySelectorAll('input[name="profile"]')
+        .forEach((r) => r.addEventListener("change", refreshOptions));
+
+      function selectedProfile() {
+        return document.querySelector('input[name="profile"]:checked').value;
+      }
+
+      // Shows/hides the "Exclude pages" box, the B&W tip and the chips
+      function refreshOptions() {
+        const isSB = view === "classic" && docType === "sb";
+        const isS200 = view === "new" && selectedProfile() === "s200";
+        $("excludeBox").style.display = isSB || isS200 ? "block" : "none";
+        $("bwHint").style.display = isS200 ? "block" : "none";
+        $("docSupporting").classList.toggle("active", docType === "supporting");
+        $("docSB").classList.toggle("active", docType === "sb");
+        $("classicChips").innerHTML =
+          docType === "sb"
+            ? '<span class="chip">≤ 100 KB per page</span><span class="chip">≤ 10 MB · single file</span><span class="chip">No split</span>'
+            : '<span class="chip">≤ 100 KB per page</span><span class="chip">≤ 10 MB per file</span><span class="chip">Auto-split</span>';
+        $("results").innerHTML = "";
+        setStatus("", "");
+      }
+      refreshOptions();
 
       const fileInput = $("pdfInput");
       function showPickedFile() {
@@ -650,7 +762,13 @@
         const el = $("status");
         el.innerText = text;
         el.style.color =
-          kind === "ok" ? "green" : kind === "work" ? "#007bff" : "#d9534f";
+          kind === "ok"
+            ? "green"
+            : kind === "work"
+              ? "#007bff"
+              : kind === "warn"
+                ? "#d98200"
+                : "#d9534f";
       }
       function setProgress(p) {
         const bar = $("bar");
@@ -834,22 +952,103 @@
         }
       }
 
+      /* ---------- Shared helpers: exclude pages / shrink ---------- */
+      // "2, 5-7" -> Set{2,5,6,7}
+      function parseExclude(str, N) {
+        const out = new Set();
+        str
+          .replace(/\s*[-–]\s*/g, "-")
+          .split(/[,;\s]+/)
+          .forEach((tok) => {
+            const m = tok.match(/^(\d+)(?:-(\d+))?$/);
+            if (!m) return;
+            let a = +m[1];
+            let b = m[2] ? +m[2] : a;
+            if (a > b) [a, b] = [b, a];
+            for (let p = Math.max(1, a); p <= Math.min(N, b); p++) out.add(p);
+          });
+        return out;
+      }
+
+      // Re-compress only the pages bigger than "cap" bytes.
+      async function shrinkPages(pdf, pages, mode, scale, qPct, cap, label) {
+        for (let i = 0; i < pages.length; i++) {
+          if (pages[i].bytes <= cap) continue;
+          const page = await pdf.getPage(pages[i].pn);
+          const r = await compressPage(page, mode, scale, qPct, cap);
+          page.cleanup();
+          pages[i] = Object.assign(r, { pn: pages[i].pn });
+          setStatus(`${label} (page ${i + 1} of ${pages.length})...`, "work");
+          setProgress(((i + 1) / pages.length) * 100);
+          await sleep(0);
+        }
+      }
+
       /* ---------- Standard (SPARK) flow ---------- */
-      async function runClassic(pdf, file, colorMode, prefix) {
+      async function runClassic(pdf, file, colorMode, prefix, docType, pageNums) {
         const scale = colorMode === "color" ? 1.2 : 1.5;
         const pages = [];
-        for (let n = 1; n <= pdf.numPages; n++) {
-          const page = await pdf.getPage(n);
-          pages.push(
-            await compressPage(page, colorMode, scale, 80, CLASSIC_PAGE_KB * 1024),
+        for (let k = 0; k < pageNums.length; k++) {
+          const page = await pdf.getPage(pageNums[k]);
+          const r = await compressPage(
+            page,
+            colorMode,
+            scale,
+            80,
+            CLASSIC_PAGE_KB * 1024,
           );
+          pages.push(Object.assign(r, { pn: pageNums[k] }));
           page.cleanup();
-          setStatus(`Compressing page ${n} of ${pdf.numPages}...`, "work");
-          setProgress((n / pdf.numPages) * 100);
+          setStatus(
+            `Compressing page ${k + 1} of ${pageNums.length}...`,
+            "work",
+          );
+          setProgress(((k + 1) / pageNums.length) * 100);
           await sleep(0);
         }
 
-        const blob = makePdf(pages);
+        let blob = makePdf(pages);
+        const excluded = pdf.numPages - pageNums.length;
+        const exNote = excluded > 0 ? ` (${excluded} page(s) excluded)` : "";
+
+        /* ----- Service Book: single file, never split ----- */
+        if (docType === "sb") {
+          let cap = CLASSIC_PAGE_KB * 1024;
+          let round = 0;
+          while (blob.size > SB_LIMIT_BYTES && round < 6 && cap > SB_MIN_CAP) {
+            cap = Math.max(
+              SB_MIN_CAP,
+              Math.floor(cap * (SB_TARGET_BYTES / blob.size) * 0.97),
+            );
+            await shrinkPages(
+              pdf,
+              pages,
+              colorMode,
+              scale,
+              80,
+              cap,
+              "Fitting into 10 MB",
+            );
+            blob = makePdf(pages);
+            round++;
+          }
+          const sbSize = fmtSize(blob.size);
+          if (blob.size > SB_LIMIT_BYTES) {
+            setStatus(
+              `File is ${sbSize}, above the 10 MB target${exNote}. It was downloaded anyway.\nTo reduce it, enter page numbers in "Exclude pages" and compress again.`,
+              "warn",
+            );
+          } else {
+            setStatus(
+              `Success! New size: ${sbSize}${exNote}. Downloading...`,
+              "ok",
+            );
+          }
+          await deliver([{ name: prefix + file.name, blob }]);
+          return true;
+        }
+
+        /* ----- Supporting Documents: split above 10 MB (as before) ----- */
         const sizeInMB = blob.size / 1024 / 1024;
         const displaySize = fmtSize(blob.size);
 
@@ -882,11 +1081,33 @@
       }
 
       /* ---------- New modes flow ---------- */
-      async function runProfile(pdf, file, colorMode, prefix, key) {
+      async function runProfile(pdf, file, colorMode, prefix, key, pageNums) {
         const prof = PROFILES[key];
         const target = Math.floor(prof.limit * SAFETY);
-        const N = pdf.numPages;
+        const M = pageNums.length;
+        const excluded = pdf.numPages - M;
+        const exNote = excluded > 0 ? ` (${excluded} page(s) excluded)` : "";
+        const limitLabel =
+          prof.limit >= 1e6
+            ? prof.limit / 1e6 + " MB"
+            : prof.limit / 1000 + " KB";
+
+        // Already small enough? Keep the original untouched (colour mode only)
+        if (
+          colorMode === "color" &&
+          excluded === 0 &&
+          file.size <= target
+        ) {
+          setStatus(
+            `Already within the limit (${fmtSize(file.size)}). No compression needed - original file kept.`,
+            "ok",
+          );
+          await deliver([{ name: file.name, blob: file }]);
+          return false;
+        }
+
         let result = null; // array of blobs
+        let tooBig = false;
 
         for (let li = 0; li <= prof.floor && !result; li++) {
           const L = LEVELS[li];
@@ -895,23 +1116,25 @@
           let total = BASE_OVERHEAD;
           let aborted = false;
 
-          for (let n = 1; n <= N; n++) {
-            const page = await pdf.getPage(n);
+          for (let k = 0; k < M; k++) {
+            const page = await pdf.getPage(pageNums[k]);
             const r = await compressPage(
               page,
               colorMode,
               L.s,
               L.q,
-              isFloor ? target - BASE_OVERHEAD - PAGE_OVERHEAD : Infinity,
+              isFloor && !prof.single
+                ? target - BASE_OVERHEAD - PAGE_OVERHEAD
+                : Infinity,
             );
             page.cleanup();
-            pages.push(r);
+            pages.push(Object.assign(r, { pn: pageNums[k] }));
             total += r.bytes + PAGE_OVERHEAD;
             setStatus(
-              `Optimizing (pass ${li + 1})... page ${n} of ${N}`,
+              `Optimizing (pass ${li + 1})... page ${k + 1} of ${M}`,
               "work",
             );
-            setProgress((n / N) * 100);
+            setProgress(((k + 1) / M) * 100);
             await sleep(0);
             if (!isFloor && total > target) {
               aborted = true; // cannot fit at this quality, try the next
@@ -920,7 +1143,35 @@
           }
           if (aborted) continue;
 
-          if (isFloor) {
+          if (prof.single) {
+            // Single file: never split. At the lowest level, squeeze further.
+            let blob = makePdf(pages);
+            if (blob.size <= target) {
+              result = [blob];
+            } else if (isFloor) {
+              let cap = Math.max(...pages.map((p) => p.bytes));
+              let round = 0;
+              while (blob.size > target && round < 8 && cap > prof.minCap) {
+                cap = Math.max(
+                  prof.minCap,
+                  Math.floor(cap * (target / blob.size) * 0.95),
+                );
+                await shrinkPages(
+                  pdf,
+                  pages,
+                  colorMode,
+                  L.s,
+                  L.q,
+                  cap,
+                  "Squeezing to fit",
+                );
+                blob = makePdf(pages);
+                round++;
+              }
+              result = [blob];
+              tooBig = blob.size > prof.limit;
+            }
+          } else if (isFloor) {
             setStatus("Checking size and splitting if needed...", "work");
             result = await buildParts(pages, target);
           } else {
@@ -938,12 +1189,19 @@
               }));
 
         const sizes = files.map((f) => fmtSize(f.blob.size)).join(", ");
-        setStatus(
-          files.length === 1
-            ? `Success! New size: ${sizes}. Downloading...`
-            : `Success! Split into ${files.length} parts (${sizes}). Downloading...`,
-          "ok",
-        );
+        if (tooBig) {
+          setStatus(
+            `File is ${sizes}, above the ${limitLabel} limit${exNote}. It was downloaded anyway.\nTo reduce it, enter page numbers in "Exclude pages" and compress again.`,
+            "warn",
+          );
+        } else {
+          setStatus(
+            files.length === 1
+              ? `Success! New size: ${sizes}${exNote}. Downloading...`
+              : `Success! Split into ${files.length} parts (${sizes}). Downloading...`,
+            "ok",
+          );
+        }
         await deliver(files);
         return true;
       }
@@ -969,40 +1227,59 @@
           const arrayBuffer = await file.arrayBuffer();
           pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
+          // pages to process (minus the excluded ones, if that box is shown)
+          const N = pdf.numPages;
+          let pageNums = Array.from({ length: N }, (_, i) => i + 1);
+          const exText = $("excludeInput").value.trim();
+          if ($("excludeBox").style.display !== "none" && exText) {
+            const ex = parseExclude(exText, N);
+            pageNums = pageNums.filter((p) => !ex.has(p));
+            if (!pageNums.length) {
+              setStatus(
+                "All pages are excluded. Please check the page numbers.",
+                "err",
+              );
+              return;
+            }
+          }
+
           const prefix =
             colorMode === "ma" ? "MA" : colorMode === "bw" ? "BW" : "CO";
 
           let done;
           if (view === "classic") {
-            done = await runClassic(pdf, file, colorMode, prefix);
+            done = await runClassic(
+              pdf,
+              file,
+              colorMode,
+              prefix,
+              docType,
+              pageNums,
+            );
           } else {
-            const key = document.querySelector(
-              'input[name="profile"]:checked',
-            ).value;
-            done = await runProfile(pdf, file, colorMode, prefix, key);
+            done = await runProfile(
+              pdf,
+              file,
+              colorMode,
+              prefix,
+              selectedProfile(),
+              pageNums,
+            );
           }
 
-          if (done) {
-            fetch(
-              `https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`,
-            )
-              .then((response) => response.json())
-              .then((data) => {
-                if (data.count) {
-                  $("countDisplay").innerText = data.count;
-                  $("counterContainer").style.display = "block";
-                }
-              })
-              .catch((error) => {
-                console.log("Counter update blocked by browser.", error);
-              });
-          }
+          if (done) bumpCounter();
         } catch (error) {
           console.error(error);
           if (error && error.name === "PasswordException") {
-            setStatus("This PDF is password protected. Remove the password and try again.", "err");
+            setStatus(
+              "This PDF is password protected. Remove the password and try again.",
+              "err",
+            );
           } else {
-            setStatus("An error occurred. Please check the file and try again.", "err");
+            setStatus(
+              "An error occurred. Please check the file and try again.",
+              "err",
+            );
           }
         } finally {
           if (pdf) pdf.destroy();
